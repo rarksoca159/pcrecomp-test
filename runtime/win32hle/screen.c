@@ -858,11 +858,10 @@ void hle_screen_pump(void) {
 #endif
 #ifdef __ANDROID__
         /*
-         * Android finger taps use the normal left-button press/release
-         * sequence, but never generate mouse movement. Send DOWN at the
-         * actual finger-down edge and UP at finger-up so the game's message
-         * handler sees a real click sequence rather than a cursor placement
-         * followed by a click after the finger is lifted.
+         * Android tap: first place the guest cursor at the finger position,
+         * allow the game one short frame to observe that position, then
+         * deliver exactly one left click. Finger-up is consumed and does not
+         * generate a second click.
          */
         {
             if (e.type == SDL_FINGERDOWN) {
@@ -879,30 +878,15 @@ void hle_screen_pump(void) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
                     hle_input_cursor(gx, gy);
+                    SDL_Delay(60);
                     hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
+                    hle_input_mouse(WM_LBUTTONUP, gx, gy);
                 }
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
-                if (g_android_touch_active && e.tfinger.fingerId == g_android_touch_id) {
-                    int ww = 0, wh = 0, gx, gy;
-                    SDL_GetWindowSize(g_win, &ww, &wh);
-                    if (ww > 0 && wh > 0) {
-                        int px = (int)(e.tfinger.x * ww);
-                        int py = (int)(e.tfinger.y * wh);
-                        if (px < 0) px = 0;
-                        if (py < 0) py = 0;
-                        if (px >= ww) px = ww - 1;
-                        if (py >= wh) py = wh - 1;
-                        to_game(px, py, &gx, &gy);
-                        hle_input_cursor(gx, gy);
-                    }
-                    /* Always release a started touch, even if size changed. */
-                    int rx, ry;
-                    hle_input_position(&rx, &ry);
-                    hle_input_mouse(WM_LBUTTONUP, rx, ry);
+                if (g_android_touch_active && e.tfinger.fingerId == g_android_touch_id)
                     g_android_touch_active = 0;
-                }
                 continue;
             }
             if (e.type == SDL_FINGERMOTION) continue;
