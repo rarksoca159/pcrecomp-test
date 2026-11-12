@@ -3,8 +3,10 @@
 #include <cstdio>
 #include <string>
 #include <unistd.h>
+extern "C" {
 #include "host.h"
 #include "win32hle.h"
+}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_arcadelab_spinwin_MainActivity_nativeEngineStatus(JNIEnv* env, jobject) {
