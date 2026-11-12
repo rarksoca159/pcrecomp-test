@@ -1,6 +1,6 @@
 package com.arcadelab.spinwin
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
@@ -14,7 +14,7 @@ import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.FileOutputStream
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private lateinit var status: TextView
     private lateinit var playButton: Button
     private val gameDir by lazy { File(filesDir, "spinwin") }
