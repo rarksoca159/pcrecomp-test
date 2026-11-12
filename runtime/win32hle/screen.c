@@ -27,6 +27,9 @@
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_vulkan.h>
 #include "win32hle.h"
+#ifdef __ANDROID__
+#include "android_input_bridge.h"
+#endif
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -840,6 +843,13 @@ void hle_screen_pump(void) {
         if (getenv("RA2_INPUT_TRACE") || g_input_trace) {
             if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) fprintf(stderr, "[input] key %s scancode %d repeat %d\n", e.type == SDL_KEYDOWN ? "down" : "up", e.key.keysym.scancode, e.key.repeat);
             else if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) fprintf(stderr, "[input] button %d %s at %d,%d\n", e.button.button, e.type == SDL_MOUSEBUTTONDOWN ? "down" : "up", e.button.x, e.button.y);
+        }
+#endif
+#ifdef __ANDROID__
+        /* One Android tap becomes one complete Win32 left click. */
+        if (e.type == SDL_FINGERDOWN) {
+            spinwin_android_forward_touch(&e, 1280, 960);
+            continue;
         }
 #endif
         if (g_menu_depth && menu_event(&e)) continue;
