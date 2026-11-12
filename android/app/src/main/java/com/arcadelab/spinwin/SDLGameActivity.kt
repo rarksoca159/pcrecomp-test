@@ -7,5 +7,5 @@ import org.libsdl.app.SDLActivity
  * SDL2 is linked statically into spinwin_android, so load only that library.
  */
 class SDLGameActivity : SDLActivity() {
-    override fun getLibraries(): Array<String> = arrayOf("spinwin_android")
+    protected override fun getLibraries(): Array<String> = arrayOf("spinwin_android")
 }
