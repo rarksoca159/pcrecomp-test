@@ -88,6 +88,8 @@ add_library(spinwin_win32hle OBJECT
     ${SPINWIN_HLE_DIR}/gdi32.c
     ${SPINWIN_HLE_DIR}/winmm.c
     ${SPINWIN_HLE_DIR}/ddraw.c
+    ${SPINWIN_HLE_DIR}/d3d.c
+    ${SPINWIN_HLE_DIR}/d3d_raster.c
     ${SPINWIN_HLE_DIR}/screen.c
     ${SPINWIN_HLE_DIR}/gdidc.c
     ${SPINWIN_HLE_DIR}/dinput.c
