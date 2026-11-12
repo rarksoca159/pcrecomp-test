@@ -836,8 +836,8 @@ static void confine_update(void) {
 #include <emscripten/threading.h>
 #endif
 #ifdef __ANDROID__
-static SDL_FingerID g_android_g_android_touch_id;
-static int g_android_g_android_touch_active, g_android_g_android_release_next_pump;
+static SDL_FingerID g_android_touch_id;
+static int g_android_touch_active, g_android_release_next_pump;
 static int g_android_touch_x, g_android_touch_y;
 #endif
 
@@ -846,7 +846,7 @@ void hle_screen_pump(void) {
 #ifdef __ANDROID__
     if (g_android_release_next_pump) {
         hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
-        g_android_release_next_pump = 0;
+        g_android_g_android_release_next_pump = 0;
         g_android_touch_active = 0;
     }
 #endif
@@ -878,18 +878,18 @@ void hle_screen_pump(void) {
                     if (py < 0) py = 0;
                     if (px >= ww) px = ww - 1;
                     if (py >= wh) py = wh - 1;
-                    to_game(px, py, &touch_x, &touch_y);
-                    touch_id = e.tfinger.fingerId;
-                    touch_active = 1;
+                    to_game(px, py, &g_android_touch_x, &g_android_touch_y);
+                    g_android_touch_id = e.tfinger.fingerId;
+                    g_android_touch_active = 1;
                     release_next_pump = 0;
                     hle_input_mouse(WM_MOUSEMOVE, g_android_touch_x, g_android_touch_y);
-                    hle_input_mouse(WM_LBUTTONDOWN, touch_x, touch_y);
+                    hle_input_mouse(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
                 }
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
-                if (touch_active && e.tfinger.fingerId == touch_id)
-                    release_next_pump = 1;
+                if (g_android_touch_active && e.tfinger.fingerId == g_android_touch_id)
+                    g_android_release_next_pump = 1;
                 continue;
             }
             if (e.type == SDL_FINGERMOTION) continue;
