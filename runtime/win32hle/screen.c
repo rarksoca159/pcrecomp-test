@@ -846,7 +846,7 @@ void hle_screen_pump(void) {
 #ifdef __ANDROID__
     if (g_android_release_next_pump) {
         hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
-        g_android_g_android_release_next_pump = 0;
+        g_android_release_next_pump = 0;
         g_android_touch_active = 0;
     }
 #endif
