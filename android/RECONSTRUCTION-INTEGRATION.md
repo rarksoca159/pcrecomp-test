@@ -6,7 +6,7 @@ and the current `runtime/win32hle` implementation.
 ## Lifted program
 
 - PE: 32-bit x86 Windows GUI executable, preferred image base `0x00400000`.
-- Entry point: `0x00415C64`.
+- Entry point: `0x00415264`.
 - Reconstructed functions: 879.
 - Generated files: `c/recomp_0000.c`, `c/recomp_dispatch.c`,
   `c/recomp_funcs.h`, `functions.json`, `pe-analysis.json`, and
