@@ -369,12 +369,7 @@ static void present(int flip) {
     }
     int ww, wh;
     SDL_GetRendererOutputSize(g_ren, &ww, &wh);
-#ifdef __ANDROID__
-    /* On phones, use the whole display instead of letterboxing the 4:3 game
-     * with blurred bars. to_game() uses this same rectangle for touch input. */
-    g_dst.x = 0, g_dst.y = 0, g_dst.w = ww, g_dst.h = wh;
-#else
-    if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
+if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
     else g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
     if (g_mode == 4) {                                   /* integer: whole multiples of the game's size */
         int k = ww / w < wh / h ? ww / w : wh / h;
@@ -382,7 +377,6 @@ static void present(int flip) {
         g_dst.w = w * k, g_dst.h = h * k;
     }
     g_dst.x = (ww - g_dst.w) / 2, g_dst.y = (wh - g_dst.h) / 2;
-#endif
     SDL_SetRenderDrawColor(g_ren, 0, 0, 0, 255);
     SDL_RenderClear(g_ren);
     if (g_bars && (g_dst.w < ww || g_dst.h < wh)) {     /* the bars: the picture, tiny then stretched, dark */
@@ -888,8 +882,18 @@ void hle_screen_pump(void) {
         {
             int gx, gy;
             if (e.type == SDL_FINGERDOWN) {
-                if (!g_android_touch_active &&
-                    android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
+                if (g_menu_depth) {
+                    /* Host menus consume the same press as desktop mouse input. */
+                    SDL_Event me = {0};
+                    int ww = 0, wh = 0;
+                    SDL_GetWindowSize(g_win, &ww, &wh);
+                    me.type = SDL_MOUSEBUTTONDOWN;
+                    me.button.button = SDL_BUTTON_LEFT;
+                    me.button.x = (int)(e.tfinger.x * ww);
+                    me.button.y = (int)(e.tfinger.y * wh);
+                    menu_event(&me);
+                } else if (!g_android_touch_active &&
+                           android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
                     hle_input_mouse(WM_MOUSEMOVE, gx, gy);
@@ -898,15 +902,27 @@ void hle_screen_pump(void) {
                 continue;
             }
             if (e.type == SDL_FINGERMOTION) {
-                if (g_android_touch_active &&
-                    e.tfinger.fingerId == g_android_touch_id &&
-                    android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
+                if (g_menu_depth) {
+                    SDL_Event me = {0};
+                    int ww = 0, wh = 0;
+                    SDL_GetWindowSize(g_win, &ww, &wh);
+                    me.type = SDL_MOUSEMOTION;
+                    me.motion.x = (int)(e.tfinger.x * ww);
+                    me.motion.y = (int)(e.tfinger.y * wh);
+                    menu_event(&me);
+                } else if (g_android_touch_active &&
+                           e.tfinger.fingerId == g_android_touch_id &&
+                           android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                }
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
-                if (g_android_touch_active &&
-                    e.tfinger.fingerId == g_android_touch_id) {
+                if (g_menu_depth || g_menu_eat_up) {
+                    /* The menu consumed the press; never leak its release to the game. */
+                    g_menu_eat_up = 0;
+                } else if (g_android_touch_active &&
+                           e.tfinger.fingerId == g_android_touch_id) {
                     hle_input_position(&gx, &gy);
                     if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
                         hle_input_mouse(WM_MOUSEMOVE, gx, gy);
