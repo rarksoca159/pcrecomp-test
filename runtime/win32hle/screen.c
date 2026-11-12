@@ -865,8 +865,22 @@ void hle_screen_pump(void) {
          */
         {
             if (e.type == SDL_FINGERDOWN) {
+                int ww = 0, wh = 0, gx, gy;
                 g_android_touch_id = e.tfinger.fingerId;
                 g_android_touch_active = 1;
+                SDL_GetWindowSize(g_win, &ww, &wh);
+                if (ww > 0 && wh > 0) {
+                    int px = (int)(e.tfinger.x * ww);
+                    int py = (int)(e.tfinger.y * wh);
+                    if (px < 0) px = 0;
+                    if (py < 0) py = 0;
+                    if (px >= ww) px = ww - 1;
+                    if (py >= wh) py = wh - 1;
+                    to_game(px, py, &gx, &gy);
+                    /* Let the game process the new touch position before
+                     * the click arrives on finger-up. */
+                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                }
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
@@ -881,7 +895,8 @@ void hle_screen_pump(void) {
                         if (px >= ww) px = ww - 1;
                         if (py >= wh) py = wh - 1;
                         to_game(px, py, &gx, &gy);
-                        hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                        /* The cursor was already positioned on finger-down.
+                         * Deliver only the click here, as a native tap. */
                         hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
                         hle_input_mouse(WM_LBUTTONUP, gx, gy);
                     }
