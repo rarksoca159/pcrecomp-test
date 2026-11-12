@@ -104,6 +104,7 @@ add_library(spinwin_win32hle OBJECT
 )
 target_include_directories(spinwin_win32hle PRIVATE
     ${SPINWIN_HLE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
     ${SPINWIN_TTF_INCLUDE_DIR}
 )
