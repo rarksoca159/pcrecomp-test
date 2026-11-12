@@ -33,7 +33,7 @@ add_library(spinwin_reconstructed OBJECT
     ${SPINWIN_RECON_DIR}/c/recomp_dispatch.c
 )
 target_include_directories(spinwin_reconstructed PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../runtime/recomp32
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
     ${SPINWIN_RECON_DIR}/c
 )
 target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_GENERATED_CODE)
