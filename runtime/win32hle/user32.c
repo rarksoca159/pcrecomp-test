@@ -1995,6 +1995,10 @@ static void u_MapVirtualKeyA(void) {                     /* (code, type) */
     if (type == 2) RET((uint32_t)vk_char(code, 0) & 0xFFu, 2);   /* VK -> char */
     RET(0, 2);
 }
+static void u_MapVirtualKeyExA(void) {                    /* (code, type, HKL) */
+    u_MapVirtualKeyA();
+    g_esp += 4;                                           /* consume the ignored HKL */
+}
 static void u_GetKeyNameTextA(void) {                    /* (lParam, buf, n) */
     static const char *const names[] = { [0x01] = "Esc", [0x0E] = "Backspace", [0x0F] = "Tab", [0x1C] = "Enter", [0x1D] = "Ctrl",
         [0x2A] = "Shift", [0x36] = "Right Shift", [0x38] = "Alt", [0x39] = "Space", [0x3A] = "Caps Lock",
@@ -2448,7 +2452,7 @@ const win32hle_shim win32hle_user32[] = {
     { "SetTimer", u_SetTimer }, { "KillTimer", u_KillTimer },
     { "GetKeyState", u_GetKeyState }, { "GetAsyncKeyState", u_GetAsyncKeyState },
     { "GetKeyboardState", u_GetKeyboardState }, { "MapVirtualKeyA", u_MapVirtualKeyA },
-    { "MapVirtualKeyExA", u_MapVirtualKeyA }, { "GetKeyboardLayout", u_GetKeyboardLayout },
+    { "MapVirtualKeyExA", u_MapVirtualKeyExA }, { "GetKeyboardLayout", u_GetKeyboardLayout },
     { "SystemParametersInfoA", u_SystemParametersInfoA },
     { "GetKeyNameTextA", u_GetKeyNameTextA }, { "ToAscii", u_ToAscii }, { "ToAsciiEx", u_ToAsciiEx },
     { "CharToOemBuffA", u_CharToOemBuffA }, { "OemToCharBuffA", u_OemToCharBuffA },
