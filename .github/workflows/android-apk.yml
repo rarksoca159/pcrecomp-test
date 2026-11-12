@@ -6,6 +6,7 @@ on:
     branches: [ "main" ]
     paths:
       - "android/**"
+      - "runtime/win32hle/**"
       - ".github/workflows/android-apk.yml"
 jobs:
   build:
