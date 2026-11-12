@@ -835,8 +835,21 @@ static void confine_update(void) {
 #ifdef __EMSCRIPTEN__
 #include <emscripten/threading.h>
 #endif
+#ifdef __ANDROID__
+static SDL_FingerID g_android_g_android_touch_id;
+static int g_android_g_android_touch_active, g_android_g_android_release_next_pump;
+static int g_android_touch_x, g_android_touch_y;
+#endif
+
 int g_input_trace;                                         /* a host's --inputtrace */
 void hle_screen_pump(void) {
+#ifdef __ANDROID__
+    if (g_android_release_next_pump) {
+        hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
+        g_android_release_next_pump = 0;
+        g_android_touch_active = 0;
+    }
+#endif
 #ifdef __EMSCRIPTEN__
     /* the browser's main thread queues this thread's input callbacks */
     emscripten_current_thread_process_queued_calls();
@@ -852,10 +865,9 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /* Turn each Android tap into ordinary SDL mouse-button events.
-         * The common mouse path then applies the same scaling, letterbox
-         * mapping, menu handling and Win32 dispatch as desktop. */
-        if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
+        /* Keep the left button down between separate Android touch events.
+         * Releasing it in the same SDL pump can make polling games miss taps. */
+        {
             if (e.type == SDL_FINGERDOWN) {
                 int ww = 0, wh = 0;
                 SDL_GetWindowSize(g_win, &ww, &wh);
@@ -866,21 +878,21 @@ void hle_screen_pump(void) {
                     if (py < 0) py = 0;
                     if (px >= ww) px = ww - 1;
                     if (py >= wh) py = wh - 1;
-                    SDL_Event click = {0};
-                    click.type = SDL_MOUSEBUTTONDOWN;
-                    click.button.windowID = SDL_GetWindowID(g_win);
-                    click.button.button = SDL_BUTTON_LEFT;
-                    click.button.state = SDL_PRESSED;
-                    click.button.clicks = 1;
-                    click.button.x = px;
-                    click.button.y = py;
-                    SDL_PushEvent(&click);
-                    click.type = SDL_MOUSEBUTTONUP;
-                    click.button.state = SDL_RELEASED;
-                    SDL_PushEvent(&click);
+                    to_game(px, py, &touch_x, &touch_y);
+                    touch_id = e.tfinger.fingerId;
+                    touch_active = 1;
+                    release_next_pump = 0;
+                    hle_input_mouse(WM_MOUSEMOVE, g_android_touch_x, g_android_touch_y);
+                    hle_input_mouse(WM_LBUTTONDOWN, touch_x, touch_y);
                 }
+                continue;
             }
-            continue;
+            if (e.type == SDL_FINGERUP) {
+                if (touch_active && e.tfinger.fingerId == touch_id)
+                    release_next_pump = 1;
+                continue;
+            }
+            if (e.type == SDL_FINGERMOTION) continue;
         }
 #endif
         if (g_menu_depth && menu_event(&e)) continue;
