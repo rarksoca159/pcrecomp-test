@@ -80,10 +80,6 @@ extern "C" int SDL_main(int, char**) {
         SDL_RenderDrawRect(renderer, &panel);
 
         const int pulse = 4 + static_cast<int>((std::sin(tick * 0.035) + 1.0) * 5.0);
-        SDL_SetRenderDrawColor(renderer, 244, 190, 65, 255);
-        for (int radius = 154; radius >= 136; radius -= 9)
-            SDL_RenderDrawCircle; // placeholder removed below
-
         // Draw concentric rings using horizontal scan lines.
         for (int radius = 150; radius >= 136; radius -= 7) {
             SDL_SetRenderDrawColor(renderer, 244, 190, 65, 255);
