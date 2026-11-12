@@ -45,6 +45,10 @@ configure_file(${SDL2_TTF_SOURCE_DIR}/SDL_ttf.h
 
 add_library(spinwin_android SHARED native-lib.cpp)
 target_compile_features(spinwin_android PRIVATE cxx_std_17)
+target_include_directories(spinwin_android PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/win32hle
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
+)
 target_link_libraries(spinwin_android PRIVATE SDL2-static)
 
 
