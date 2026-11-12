@@ -1967,6 +1967,18 @@ static void u_SetCursor(void) {
     RET(previous, 1);
 }
 static void u_ClipCursor(void) { RET(1, 1); }
+static void u_SystemParametersInfoA(void) {               /* Android-friendly desktop defaults */
+    uint32_t action = A32(0), out = A32(2);
+    if (out && action == 0x0030u) {                       /* SPI_GETWORKAREA */
+        MEM32(out) = 0; MEM32(out + 4) = 0;
+        MEM32(out + 8) = 1280; MEM32(out + 12) = 960;
+    } else if (out && action == 0x0010u) {                /* SPI_GETSCREENSAVEACTIVE */
+        MEM32(out) = 0;
+    } else if (out && action == 0x0003u) {                /* SPI_GETMOUSE */
+        MEM32(out) = 0; MEM32(out + 4) = 0; MEM32(out + 8) = 0;
+    }
+    RET(1, 4);
+}
 static void u_MapVirtualKeyA(void) {                     /* (code, type) */
     static const uint8_t scan_of[256] = {
         [0x08] = 0x0E, [0x09] = 0x0F, [0x0D] = 0x1C, [0x10] = 0x2A, [0x11] = 0x1D, [0x12] = 0x38, [0x1B] = 0x01, [0x20] = 0x39,
@@ -2007,6 +2019,14 @@ static void u_ToAscii(void) {                            /* (vk, scan, keystate,
     MEM16(A32(3)) = (uint16_t)c;
     RET(1, 5);
 }
+static void u_ToAsciiEx(void) {                           /* same conversion; final HKL is ignored */
+    const uint8_t *ks = (const uint8_t *)APTR(2);
+    int c = vk_char(A32(0), ks && (ks[VK_SHIFT] & 0x80));
+    if (!c || !A32(3)) RET(0, 6);
+    MEM16(A32(3)) = (uint16_t)c;
+    RET(1, 6);
+}
+static void u_GetKeyboardLayout(void) { RET(0x04090409u, 1); }
 static void u_CharToOemBuffA(void) { if (A32(0) != A32(1)) memmove(APTR(1), APTR(0), A32(2)); RET(1, 3); }
 static void u_OemToCharBuffA(void) { if (A32(0) != A32(1)) memmove(APTR(1), APTR(0), A32(2)); RET(1, 3); }
 static void u_CharUpperA(void) { uint32_t s = A32(0); if (s < 0x10000u) RET(s >= 'a' && s <= 'z' ? s - 32 : s, 1); for (char *p = ASTR(0); *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32; RET(s, 1); }
@@ -2428,7 +2448,9 @@ const win32hle_shim win32hle_user32[] = {
     { "SetTimer", u_SetTimer }, { "KillTimer", u_KillTimer },
     { "GetKeyState", u_GetKeyState }, { "GetAsyncKeyState", u_GetAsyncKeyState },
     { "GetKeyboardState", u_GetKeyboardState }, { "MapVirtualKeyA", u_MapVirtualKeyA },
-    { "GetKeyNameTextA", u_GetKeyNameTextA }, { "ToAscii", u_ToAscii },
+    { "MapVirtualKeyExA", u_MapVirtualKeyA }, { "GetKeyboardLayout", u_GetKeyboardLayout },
+    { "SystemParametersInfoA", u_SystemParametersInfoA },
+    { "GetKeyNameTextA", u_GetKeyNameTextA }, { "ToAscii", u_ToAscii }, { "ToAsciiEx", u_ToAsciiEx },
     { "CharToOemBuffA", u_CharToOemBuffA }, { "OemToCharBuffA", u_OemToCharBuffA },
     { "CharUpperA", u_CharUpperA }, { "CharLowerA", u_CharLowerA },
     { "RegisterHotKey", u_RegisterHotKey }, { "UnregisterHotKey", u_UnregisterHotKey },
