@@ -22,3 +22,18 @@ FetchContent_MakeAvailable(SDL2)
 add_library(spinwin_android SHARED native-lib.cpp)
 target_compile_features(spinwin_android PRIVATE cxx_std_17)
 target_link_libraries(spinwin_android PRIVATE SDL2-static)
+
+
+# Compile the reconstructed Spin & Win machine-code translation as an isolated
+# object target first. It is intentionally not linked into the APK yet: the
+# Win32 HLE host, PE loader, and FMOD imports still need to be wired up.
+set(SPINWIN_RECON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/reconstructed)
+add_library(spinwin_reconstructed OBJECT
+    ${SPINWIN_RECON_DIR}/c/recomp_0000.c
+    ${SPINWIN_RECON_DIR}/c/recomp_dispatch.c
+)
+target_include_directories(spinwin_reconstructed PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../runtime/recomp32
+    ${SPINWIN_RECON_DIR}/c
+)
+target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_GENERATED_CODE)
