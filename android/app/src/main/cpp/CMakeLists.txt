@@ -93,6 +93,7 @@ add_library(spinwin_win32hle OBJECT
     ${SPINWIN_HLE_DIR}/wsock32.c
     ${SPINWIN_HLE_DIR}/ole32.c
     ${SPINWIN_HLE_DIR}/mss.c
+    ${SPINWIN_HLE_DIR}/bink.c
 )
 target_include_directories(spinwin_win32hle PRIVATE
     ${SPINWIN_HLE_DIR}
