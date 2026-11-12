@@ -837,7 +837,7 @@ static void confine_update(void) {
 #endif
 #ifdef __ANDROID__
 static SDL_FingerID g_android_touch_id;
-static int g_android_touch_active, g_android_release_next_pump;
+static int g_android_touch_active, g_android_release_next_pump, g_android_release_delay;
 static int g_android_touch_x, g_android_touch_y;
 #endif
 
@@ -845,9 +845,13 @@ int g_input_trace;                                         /* a host's --inputtr
 void hle_screen_pump(void) {
 #ifdef __ANDROID__
     if (g_android_release_next_pump) {
-        hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
-        g_android_release_next_pump = 0;
-        g_android_touch_active = 0;
+        if (g_android_release_delay > 0) {
+            g_android_release_delay--;
+        } else {
+            hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
+            g_android_release_next_pump = 0;
+            g_android_touch_active = 0;
+        }
     }
 #endif
 #ifdef __EMSCRIPTEN__
@@ -882,14 +886,17 @@ void hle_screen_pump(void) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
                     g_android_release_next_pump = 0;
+                    g_android_release_delay = 8;
                     hle_input_mouse(WM_MOUSEMOVE, g_android_touch_x, g_android_touch_y);
                     hle_input_mouse(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
                 }
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
-                if (g_android_touch_active && e.tfinger.fingerId == g_android_touch_id)
+                if (g_android_touch_active && e.tfinger.fingerId == g_android_touch_id) {
                     g_android_release_next_pump = 1;
+                    g_android_release_delay = 8;
+                }
                 continue;
             }
             if (e.type == SDL_FINGERMOTION) continue;
