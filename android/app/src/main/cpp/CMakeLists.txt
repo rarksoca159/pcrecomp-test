@@ -82,3 +82,11 @@ target_include_directories(spinwin_android_input PRIVATE
 )
 target_link_libraries(spinwin_android_input PRIVATE SDL2-static)
 target_compile_features(spinwin_android_input PRIVATE c_std_11)
+
+# The 32-bit Android ABI can use direct guest virtual addresses, while the
+# 64-bit ABI uses the HLE's 4-GB based guest-memory window. Keep the lifter
+# and HLE memory models in sync for each ABI.
+if(ANDROID_ABI STREQUAL "armeabi-v7a")
+    target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_FLAT_MEMORY)
+    target_compile_definitions(spinwin_win32hle PRIVATE HLE_FLAT)
+endif()
