@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
                 val valid = File(gameDir, "SpinWin.exe").exists() &&
                     File(gameDir, "Graphics").isDirectory && File(gameDir, "Audio").isDirectory
                 status.text = if (valid) {
-                    "${nativeEngineStatus()}\nGame files imported. The Windows game engine is still being ported."
+                    "${nativeEngineStatus()}\nGame files imported. Try the SDL2 graphics test below."
                 } else {
                     "Some expected files are missing. Select the main 'Spin & Win' folder."
                 }
@@ -62,22 +62,28 @@ class MainActivity : ComponentActivity() {
         layout.addView(TextView(this).apply {
             text = "Arcade Lab • Android port"; textSize = 16f
             setTextColor(0xFFFFC8C8.toInt()); gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 24)
+            setPadding(0, 8, 0, 20)
         })
         layout.addView(Button(this).apply {
             text = "SELECT GAME FOLDER"
             setOnClickListener { folderPicker.launch(null) }
         })
-        playButton = Button(this).apply {
-            text = "PLAY"; isEnabled = false
+        layout.addView(Button(this).apply {
+            text = "TEST SDL2 GRAPHICS + TOUCH"
             setOnClickListener {
-                Toast.makeText(this@MainActivity, "The game engine is not integrated yet.", Toast.LENGTH_LONG).show()
+                startActivity(Intent(this@MainActivity, SDLGameActivity::class.java))
+            }
+        })
+        playButton = Button(this).apply {
+            text = "PLAY SPIN & WIN"; isEnabled = false
+            setOnClickListener {
+                Toast.makeText(this@MainActivity, "The original game engine is not integrated yet.", Toast.LENGTH_LONG).show()
             }
         }
         layout.addView(playButton)
         status = TextView(this).apply {
             textSize = 14f; setTextColor(0xFFFFE0E0.toInt())
-            gravity = Gravity.CENTER; setPadding(0, 20, 0, 0)
+            gravity = Gravity.CENTER; setPadding(0, 18, 0, 0)
         }
         layout.addView(status)
         setContentView(layout)
@@ -86,7 +92,7 @@ class MainActivity : ComponentActivity() {
     private fun refreshStatus() {
         val runtime = nativeEngineStatus()
         status.text = if (File(gameDir, "SpinWin.exe").exists())
-            "$runtime\nGame files are present. Windows engine port is in progress; Play is disabled."
+            "$runtime\nGame files are present. SDL2 test is available; game engine is still in progress."
         else "$runtime\nChoose the extracted 'Spin & Win' game folder to import its files."
     }
 
