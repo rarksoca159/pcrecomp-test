@@ -19,6 +19,7 @@ void recomp_host_init(void) {
     win32hle_register(win32hle_kernel32_crt);
     win32hle_register(win32hle_module);
     win32hle_register(win32hle_shell32);
+    win32hle_register(win32hle_fmod);
     win32hle_register(win32hle_gdidc);
     win32hle_register(win32hle_gdi32);
     win32hle_register(win32hle_user32);
