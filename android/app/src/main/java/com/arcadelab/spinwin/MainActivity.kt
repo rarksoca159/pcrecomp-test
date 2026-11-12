@@ -19,6 +19,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var playButton: Button
     private val gameDir by lazy { File(filesDir, "spinwin") }
 
+    private external fun nativeEngineStatus(): String
+
     private val folderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
         if (uri != null) {
             try {
@@ -28,7 +30,7 @@ class MainActivity : ComponentActivity() {
                 val valid = File(gameDir, "SpinWin.exe").exists() &&
                     File(gameDir, "Graphics").isDirectory && File(gameDir, "Audio").isDirectory
                 status.text = if (valid) {
-                    "Game files imported. The Android engine is still being ported."
+                    "${nativeEngineStatus()}\nGame files imported. The Windows game engine is still being ported."
                 } else {
                     "Some expected files are missing. Select the main 'Spin & Win' folder."
                 }
@@ -82,9 +84,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshStatus() {
+        val runtime = nativeEngineStatus()
         status.text = if (File(gameDir, "SpinWin.exe").exists())
-            "Game files are present. Engine port is in progress; Play is disabled."
-        else "Choose the extracted 'Spin & Win' game folder to import its files."
+            "$runtime\nGame files are present. Windows engine port is in progress; Play is disabled."
+        else "$runtime\nChoose the extracted 'Spin & Win' game folder to import its files."
     }
 
     private fun copyTree(source: DocumentFile, destination: File) {
