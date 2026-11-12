@@ -858,10 +858,11 @@ void hle_screen_pump(void) {
 #endif
 #ifdef __ANDROID__
         /*
-         * Match the native Android port: treat a tap as one action at finger
-         * release, not as a mouse pointer that must first be positioned.
-         * The final touch coordinates are mapped directly to game pixels;
-         * one complete left click is delivered at that same location.
+         * Android-only touch input: remember the finger position without
+         * generating a mouse-move message. On release, send one coordinate-
+         * bearing click directly to the game's input queue. This avoids the
+         * old move-then-click sequence that made a first tap only position
+         * the pointer.
          */
         {
             if (e.type == SDL_FINGERDOWN) {
@@ -877,9 +878,8 @@ void hle_screen_pump(void) {
                     if (px >= ww) px = ww - 1;
                     if (py >= wh) py = wh - 1;
                     to_game(px, py, &gx, &gy);
-                    /* Let the game process the new touch position before
-                     * the click arrives on finger-up. */
-                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                    /* Update GetCursorPos without emitting WM_MOUSEMOVE. */
+                    hle_input_cursor(gx, gy);
                 }
                 continue;
             }
@@ -895,8 +895,8 @@ void hle_screen_pump(void) {
                         if (px >= ww) px = ww - 1;
                         if (py >= wh) py = wh - 1;
                         to_game(px, py, &gx, &gy);
-                        /* The cursor was already positioned on finger-down.
-                         * Deliver only the click here, as a native tap. */
+                        hle_input_cursor(gx, gy);
+                        /* The click carries the touch coordinates itself. */
                         hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
                         hle_input_mouse(WM_LBUTTONUP, gx, gy);
                     }
