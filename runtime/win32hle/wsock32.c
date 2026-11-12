@@ -306,6 +306,7 @@ static void w_gethostbyname(void) {
     if (!name || gethostname(self, sizeof self) != 0 || strcasecmp(name, self)) { g_wsa_error = WSAHOST_NOT_FOUND; RET(0, 1); }
     snprintf(he->nm, sizeof he->nm, "%s", self);
     int n = 0;
+#if !defined(__ANDROID__)
     struct ifaddrs *ifs = NULL;
     if (getifaddrs(&ifs) == 0) {
         for (struct ifaddrs *i = ifs; i && n < 8; i = i->ifa_next)
@@ -313,6 +314,9 @@ static void w_gethostbyname(void) {
                 memcpy(&he->addr[n++], &((struct sockaddr_in *)i->ifa_addr)->sin_addr, 4);
         freeifaddrs(ifs);
     }
+#endif
+    /* Android API 23 does not expose getifaddrs in its public NDK headers.
+     * The game does not require LAN discovery, so report loopback there. */
     if (!n) he->addr[n++] = htonl(INADDR_LOOPBACK);
     for (int i = 0; i < n; i++) he->lp[i] = hle_va(&he->addr[i]);
     RETP(he, 1);
