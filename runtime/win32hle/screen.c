@@ -483,14 +483,15 @@ static SDL_Cursor *sdl_cursor_from(const hle_cursor_image_t *img) {
 }
 
 static void update_cursor(void) {
+#ifdef __ANDROID__
+    /* Touch is the only pointer on Android. Keep SDL's host cursor hidden. */
+    SDL_ShowCursor(SDL_DISABLE);
+    return;
+#else
     static int was_shown = 0;
     static uint32_t was_handle;
     static SDL_Cursor *made;
     int show = g_menu_depth || (hle_screen_cursor_hook && hle_screen_cursor_hook());
-#ifdef __ANDROID__
-    /* Android users tap the screen directly; never expose an SDL mouse arrow. */
-    show = 0;
-#endif
     uint32_t handle = g_menu_depth ? 0 : hle_current_cursor();   /* over a menu, the system arrow */
     if (show == was_shown && (!show || handle == was_handle)) return;
     if (show && handle != was_handle) {
@@ -504,6 +505,7 @@ static void update_cursor(void) {
     if (show != was_shown) SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE);
     fprintf(stderr, "[screen] cursor: %s\n", !show ? "drawn by the game" : made ? "the game's, from its resources" : "the system arrow");
     was_shown = show;
+#endif
 }
 
 /* ---- the popup menu (hle_screen_menu) ----
@@ -1000,7 +1002,11 @@ int hle_screen_open(const char *title, int fullscreen, int headless) {
     if (!g_win) { fprintf(stderr, "[screen] window: %s\n", SDL_GetError()); return -1; }
     if (hle_screen_gl) {                                 /* the host's GL layer draws; no SDL renderer */
         SDL_ShowCursor(SDL_DISABLE);
+        #ifdef __ANDROID__
+        hle_cursor_hook = NULL;                       /* no host mouse warping on touch devices */
+#else
         hle_cursor_hook = warp;
+#endif
         g_video_thread = pthread_self();
         fprintf(stderr, "[screen] %s, %s window (the host draws), fullscreen F11\n", SDL_GetCurrentVideoDriver(),
                 hle_screen_gl == 2 ? "Vulkan" : "OpenGL");
@@ -1020,7 +1026,11 @@ int hle_screen_open(const char *title, int fullscreen, int headless) {
     if (!g_ren) { fprintf(stderr, "[screen] renderer: %s\n", SDL_GetError()); return -1; }
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     SDL_ShowCursor(SDL_DISABLE);                         /* the game draws its own */
-    hle_cursor_hook = warp;
+    #ifdef __ANDROID__
+        hle_cursor_hook = NULL;                       /* no host mouse warping on touch devices */
+#else
+        hle_cursor_hook = warp;
+#endif
     SDL_RendererInfo ri;
     SDL_GetRendererInfo(g_ren, &ri);
     g_video_thread = pthread_self();
