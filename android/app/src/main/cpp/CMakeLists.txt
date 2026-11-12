@@ -121,3 +121,14 @@ if(ANDROID_ABI STREQUAL "armeabi-v7a")
     target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_FLAT_MEMORY)
     target_compile_definitions(spinwin_win32hle PRIVATE HLE_FLAT)
 endif()
+
+
+# Link the reconstructed engine and Win32 compatibility objects into the
+# Android native library. SDL_main remains on the safe graphics test until
+# runtime launch validation is complete.
+target_link_libraries(spinwin_android PRIVATE
+    spinwin_reconstructed
+    spinwin_win32hle
+    spinwin_android_input
+    SDL2_ttf
+)
