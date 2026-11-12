@@ -1,7 +1,9 @@
 # Spin & Win reconstructed-code integration assessment
 
-This assessment was made from the supplied `SpinWin_reconstructed_C_source.zip`
-and the current `runtime/win32hle` implementation.
+This assessment was made from the uploaded `reconstructed-c-1.zip`
+and the current `runtime/win32hle` implementation. The six archive files
+were verified against the copies already committed under
+`android/app/src/main/cpp/reconstructed/` (their Git blob hashes match).
 
 ## Lifted program
 
@@ -81,6 +83,7 @@ may break its startup checks.
 ## Important status
 
 This is an integration assessment, not a claim that the lifted C is already
-compiled into the APK. The supplied archive is currently attached to the
-conversation; it has not been uploaded into the Git repository. The original
-game is not yet playable on Android.
+compiled into the APK. The six reconstructed source files are present in the
+Git repository under `android/app/src/main/cpp/reconstructed/`, but they are
+not yet included in the Android CMake target. The original game is not yet
+playable on Android.
