@@ -369,6 +369,11 @@ static void present(int flip) {
     }
     int ww, wh;
     SDL_GetRendererOutputSize(g_ren, &ww, &wh);
+#ifdef __ANDROID__
+    /* On phones, use the whole display instead of letterboxing the 4:3 game
+     * with blurred bars. to_game() uses this same rectangle for touch input. */
+    g_dst.x = 0, g_dst.y = 0, g_dst.w = ww, g_dst.h = wh;
+#else
     if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
     else g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
     if (g_mode == 4) {                                   /* integer: whole multiples of the game's size */
@@ -377,6 +382,7 @@ static void present(int flip) {
         g_dst.w = w * k, g_dst.h = h * k;
     }
     g_dst.x = (ww - g_dst.w) / 2, g_dst.y = (wh - g_dst.h) / 2;
+#endif
     SDL_SetRenderDrawColor(g_ren, 0, 0, 0, 255);
     SDL_RenderClear(g_ren);
     if (g_bars && (g_dst.w < ww || g_dst.h < wh)) {     /* the bars: the picture, tiny then stretched, dark */
