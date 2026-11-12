@@ -19,6 +19,30 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL2)
 
+# SDL2_ttf supplies the font rendering used by the existing Win32 GDI layer.
+# Build its FreeType dependency from the upstream submodule for Android.
+set(SDL2TTF_VENDORED ON CACHE BOOL "Build FreeType from source" FORCE)
+set(SDL2TTF_HARFBUZZ OFF CACHE BOOL "Disable optional text shaping" FORCE)
+set(SDL2TTF_SAMPLES OFF CACHE BOOL "Do not build SDL_ttf samples" FORCE)
+set(SDL2TTF_INSTALL OFF CACHE BOOL "Do not install SDL_ttf" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build SDL_ttf statically" FORCE)
+FetchContent_Declare(
+    SDL2_ttf
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
+    GIT_TAG release-2.22.0
+    GIT_SHALLOW TRUE
+    GIT_SUBMODULES external/freetype
+    GIT_SUBMODULES_RECURSE TRUE
+)
+FetchContent_MakeAvailable(SDL2_ttf)
+
+# The HLE sources include SDL_ttf using the conventional SDL2/ header path.
+FetchContent_GetProperties(SDL2_ttf SOURCE_DIR SDL2_TTF_SOURCE_DIR)
+set(SPINWIN_TTF_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdl2-ttf-include)
+file(MAKE_DIRECTORY ${SPINWIN_TTF_INCLUDE_DIR}/SDL2)
+configure_file(${SDL2_TTF_SOURCE_DIR}/SDL_ttf.h
+               ${SPINWIN_TTF_INCLUDE_DIR}/SDL2/SDL_ttf.h COPYONLY)
+
 add_library(spinwin_android SHARED native-lib.cpp)
 target_compile_features(spinwin_android PRIVATE cxx_std_17)
 target_link_libraries(spinwin_android PRIVATE SDL2-static)
@@ -57,6 +81,8 @@ add_library(spinwin_win32hle OBJECT
     ${SPINWIN_HLE_DIR}/gdi32.c
     ${SPINWIN_HLE_DIR}/winmm.c
     ${SPINWIN_HLE_DIR}/ddraw.c
+    ${SPINWIN_HLE_DIR}/screen.c
+    ${SPINWIN_HLE_DIR}/gdidc.c
     ${SPINWIN_HLE_DIR}/dinput.c
     ${SPINWIN_HLE_DIR}/dsound.c
     ${SPINWIN_HLE_DIR}/advapi32.c
@@ -69,7 +95,9 @@ add_library(spinwin_win32hle OBJECT
 target_include_directories(spinwin_win32hle PRIVATE
     ${SPINWIN_HLE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
+    ${SPINWIN_TTF_INCLUDE_DIR}
 )
+target_link_libraries(spinwin_win32hle PRIVATE SDL2-static SDL2_ttf)
 target_compile_features(spinwin_win32hle PRIVATE c_std_11)
 
 # Compile the Android tap-to-Win32 input adapter as a separate object. It is
