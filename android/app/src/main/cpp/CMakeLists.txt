@@ -61,6 +61,11 @@ target_include_directories(spinwin_reconstructed PRIVATE
     ${SPINWIN_RECON_DIR}/c
 )
 target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_GENERATED_CODE)
+# The generated function bodies call other lifted functions before their
+# definitions; preload the generated prototypes to satisfy strict Clang C99.
+target_compile_options(spinwin_reconstructed PRIVATE
+    -include ${SPINWIN_RECON_DIR}/c/recomp_funcs.h
+)
 
 # Compile the portable Win32 compatibility host used by the reconstructed PE.
 # Keep this as an object target while Android-specific display/audio wiring is
