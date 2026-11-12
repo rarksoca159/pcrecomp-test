@@ -846,9 +846,25 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /* One Android tap becomes one complete Win32 left click. */
+        /* Convert Android's normalized finger position through the same
+         * viewport/letterbox mapping used by a real SDL mouse, then deliver
+         * one complete Win32 left click. This keeps taps aligned at every
+         * screen size and avoids the move-only first tap. */
         if (e.type == SDL_FINGERDOWN) {
-            spinwin_android_forward_touch(&e, 1280, 960);
+            int ww = 0, wh = 0, gx, gy;
+            SDL_GetWindowSize(g_win, &ww, &wh);
+            if (ww > 0 && wh > 0) {
+                int px = (int)(e.tfinger.x * ww);
+                int py = (int)(e.tfinger.y * wh);
+                if (px < 0) px = 0;
+                if (py < 0) py = 0;
+                if (px >= ww) px = ww - 1;
+                if (py >= wh) py = wh - 1;
+                to_game(px, py, &gx, &gy);
+                hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
+                hle_input_mouse(WM_LBUTTONUP, gx, gy);
+            }
             continue;
         }
 #endif
