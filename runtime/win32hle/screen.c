@@ -877,7 +877,8 @@ void hle_screen_pump(void) {
                     to_game(px, py, &gx, &gy);
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
-                    hle_input_cursor(gx, gy);
+                    /* Move the guest pointer first, as a desktop mouse does. */
+                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
                     SDL_Delay(60);
                     hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
                     hle_input_mouse(WM_LBUTTONUP, gx, gy);
