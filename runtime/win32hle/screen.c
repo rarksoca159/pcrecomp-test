@@ -487,6 +487,10 @@ static void update_cursor(void) {
     static uint32_t was_handle;
     static SDL_Cursor *made;
     int show = g_menu_depth || (hle_screen_cursor_hook && hle_screen_cursor_hook());
+#ifdef __ANDROID__
+    /* Android users tap the screen directly; never expose an SDL mouse arrow. */
+    show = 0;
+#endif
     uint32_t handle = g_menu_depth ? 0 : hle_current_cursor();   /* over a menu, the system arrow */
     if (show == was_shown && (!show || handle == was_handle)) return;
     if (show && handle != was_handle) {
@@ -846,40 +850,26 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /* Native Android finger input. Keep the primary finger's left
-         * button down for the duration of the touch so both queued Win32
-         * messages and games polling button state can observe the press. */
+        /* Android taps are complete clicks: move the virtual cursor and send
+         * down+up at the same game pixel in this event. Never require a
+         * preliminary tap to position a mouse pointer. */
         if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
-            static SDL_FingerID active_finger;
-            static int finger_active;
-            int is_down = e.type == SDL_FINGERDOWN;
-            int is_up = e.type == SDL_FINGERUP;
-            if (is_down) {
-                if (finger_active) continue;
-                active_finger = e.tfinger.fingerId;
-                finger_active = 1;
-            } else if (!finger_active || e.tfinger.fingerId != active_finger) {
-                continue;
-            }
-
-            int ww = 0, wh = 0, gx, gy;
-            SDL_GetWindowSize(g_win, &ww, &wh);
-            if (ww > 0 && wh > 0) {
-                int px = (int)(e.tfinger.x * ww);
-                int py = (int)(e.tfinger.y * wh);
-                if (px < 0) px = 0;
-                if (py < 0) py = 0;
-                if (px >= ww) px = ww - 1;
-                if (py >= wh) py = wh - 1;
-                to_game(px, py, &gx, &gy);
-                hle_input_mouse(WM_MOUSEMOVE, gx, gy);
-                if (is_down) hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
-                if (is_up) {
+            if (e.type == SDL_FINGERDOWN) {
+                int ww = 0, wh = 0, gx, gy;
+                SDL_GetWindowSize(g_win, &ww, &wh);
+                if (ww > 0 && wh > 0) {
+                    int px = (int)(e.tfinger.x * ww);
+                    int py = (int)(e.tfinger.y * wh);
+                    if (px < 0) px = 0;
+                    if (py < 0) py = 0;
+                    if (px >= ww) px = ww - 1;
+                    if (py >= wh) py = wh - 1;
+                    to_game(px, py, &gx, &gy);
+                    hle_input_cursor(gx, gy);
+                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                    hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
                     hle_input_mouse(WM_LBUTTONUP, gx, gy);
-                    finger_active = 0;
                 }
-            } else if (is_up) {
-                finger_active = 0;
             }
             continue;
         }
