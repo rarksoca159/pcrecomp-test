@@ -901,6 +901,7 @@ void hle_screen_pump(void) {
             if (e.type == SDL_FINGERUP) {
                 if (g_android_touch_active &&
                     e.tfinger.fingerId == g_android_touch_id) {
+                    hle_input_position(&gx, &gy);
                     if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
                         hle_input_mouse(WM_MOUSEMOVE, gx, gy);
                     hle_input_mouse(WM_LBUTTONUP, gx, gy);
