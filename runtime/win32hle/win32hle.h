@@ -297,6 +297,7 @@ extern const win32hle_shim win32hle_kernel32_ext[];   /* file I/O, Global*, .ini
 extern const win32hle_shim win32hle_kernel32_crt[];   /* CRT startup -> WinMain */
 extern const win32hle_shim win32hle_module[];         /* modules, resources, current directory */
 extern const win32hle_shim win32hle_shell32[];        /* ShellExecuteA */
+extern const win32hle_shim win32hle_fmod[];           /* silent FMOD FSOUND compatibility */
 extern const win32hle_shim win32hle_gdi32[];
 extern const win32hle_shim win32hle_gdidc[];          /* DCs, fonts, text (SDL2_ttf) */
 uint32_t hle_gdi_surface_dc(uint8_t *px, int w, int h, int pitch, int bpp);   /* a DC drawing into those pixels */
