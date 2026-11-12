@@ -881,7 +881,7 @@ void hle_screen_pump(void) {
                     to_game(px, py, &g_android_touch_x, &g_android_touch_y);
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
-                    release_next_pump = 0;
+                    g_android_release_next_pump = 0;
                     hle_input_mouse(WM_MOUSEMOVE, g_android_touch_x, g_android_touch_y);
                     hle_input_mouse(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
                 }
