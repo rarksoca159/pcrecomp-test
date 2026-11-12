@@ -37,3 +37,37 @@ target_include_directories(spinwin_reconstructed PRIVATE
     ${SPINWIN_RECON_DIR}/c
 )
 target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_GENERATED_CODE)
+
+# Compile the portable Win32 compatibility host used by the reconstructed PE.
+# Keep this as an object target while Android-specific display/audio wiring is
+# being added; this validates the host sources with the NDK without linking an
+# incomplete runtime into the app yet.
+set(SPINWIN_HLE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/win32hle)
+add_library(spinwin_win32hle OBJECT
+    ${SPINWIN_HLE_DIR}/host_lite.c
+    ${SPINWIN_HLE_DIR}/guest_mem.c
+    ${SPINWIN_HLE_DIR}/pe_loader.c
+    ${SPINWIN_HLE_DIR}/host.c
+    ${SPINWIN_HLE_DIR}/hle_path.c
+    ${SPINWIN_HLE_DIR}/module.c
+    ${SPINWIN_HLE_DIR}/kernel32.c
+    ${SPINWIN_HLE_DIR}/kernel32_ext.c
+    ${SPINWIN_HLE_DIR}/kernel32_crt.c
+    ${SPINWIN_HLE_DIR}/user32.c
+    ${SPINWIN_HLE_DIR}/gdi32.c
+    ${SPINWIN_HLE_DIR}/winmm.c
+    ${SPINWIN_HLE_DIR}/ddraw.c
+    ${SPINWIN_HLE_DIR}/dinput.c
+    ${SPINWIN_HLE_DIR}/dsound.c
+    ${SPINWIN_HLE_DIR}/advapi32.c
+    ${SPINWIN_HLE_DIR}/storage.c
+    ${SPINWIN_HLE_DIR}/lz32.c
+    ${SPINWIN_HLE_DIR}/wsock32.c
+    ${SPINWIN_HLE_DIR}/ole32.c
+    ${SPINWIN_HLE_DIR}/mss.c
+)
+target_include_directories(spinwin_win32hle PRIVATE
+    ${SPINWIN_HLE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
+)
+target_compile_features(spinwin_win32hle PRIVATE c_std_11)
