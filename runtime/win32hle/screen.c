@@ -852,12 +852,12 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /* Android taps are complete clicks: move the virtual cursor and send
-         * down+up at the same game pixel in this event. Never require a
-         * preliminary tap to position a mouse pointer. */
+        /* Turn each Android tap into ordinary SDL mouse-button events.
+         * The common mouse path then applies the same scaling, letterbox
+         * mapping, menu handling and Win32 dispatch as desktop. */
         if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
             if (e.type == SDL_FINGERDOWN) {
-                int ww = 0, wh = 0, gx, gy;
+                int ww = 0, wh = 0;
                 SDL_GetWindowSize(g_win, &ww, &wh);
                 if (ww > 0 && wh > 0) {
                     int px = (int)(e.tfinger.x * ww);
@@ -866,11 +866,18 @@ void hle_screen_pump(void) {
                     if (py < 0) py = 0;
                     if (px >= ww) px = ww - 1;
                     if (py >= wh) py = wh - 1;
-                    to_game(px, py, &gx, &gy);
-                    hle_input_cursor(gx, gy);
-                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
-                    hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
-                    hle_input_mouse(WM_LBUTTONUP, gx, gy);
+                    SDL_Event click = {0};
+                    click.type = SDL_MOUSEBUTTONDOWN;
+                    click.button.windowID = SDL_GetWindowID(g_win);
+                    click.button.button = SDL_BUTTON_LEFT;
+                    click.button.state = SDL_PRESSED;
+                    click.button.clicks = 1;
+                    click.button.x = px;
+                    click.button.y = py;
+                    SDL_PushEvent(&click);
+                    click.type = SDL_MOUSEBUTTONUP;
+                    click.button.state = SDL_RELEASED;
+                    SDL_PushEvent(&click);
                 }
             }
             continue;
@@ -993,6 +1000,10 @@ int hle_screen_open(const char *title, int fullscreen, int headless) {
     hle_input_relative_hook = want_relative;
     hle_gdi_window_hook = present_gdi;                   /* a GDI game's blit shows, pumping or not (a loading bar) */
     if (headless) return 0;
+#ifdef __ANDROID__
+    /* Our finger handler creates the mouse clicks; avoid duplicate SDL ones. */
+    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+#endif
     SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");      /* SIGINT and SIGTERM end the process: SDL would make them a close the game can refuse */
     SDL_SetHint(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES, "1"); /* macOS: full screen in its own Space, as apps do */
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) { fprintf(stderr, "[screen] SDL: %s\n", SDL_GetError()); return -1; }
