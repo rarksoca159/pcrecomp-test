@@ -837,23 +837,11 @@ static void confine_update(void) {
 #endif
 #ifdef __ANDROID__
 static SDL_FingerID g_android_touch_id;
-static int g_android_touch_active, g_android_release_next_pump, g_android_release_delay;
-static int g_android_touch_x, g_android_touch_y;
+static int g_android_touch_active;
 #endif
 
 int g_input_trace;                                         /* a host's --inputtrace */
 void hle_screen_pump(void) {
-#ifdef __ANDROID__
-    if (g_android_release_next_pump) {
-        if (g_android_release_delay > 0) {
-            g_android_release_delay--;
-        } else {
-            hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
-            g_android_release_next_pump = 0;
-            g_android_touch_active = 0;
-        }
-    }
-#endif
 #ifdef __EMSCRIPTEN__
     /* the browser's main thread queues this thread's input callbacks */
     emscripten_current_thread_process_queued_calls();
@@ -869,33 +857,35 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /* Keep the left button down between separate Android touch events.
-         * Releasing it in the same SDL pump can make polling games miss taps. */
+        /*
+         * Match the native Android port: treat a tap as one action at finger
+         * release, not as a mouse pointer that must first be positioned.
+         * The final touch coordinates are mapped directly to game pixels;
+         * one complete left click is delivered at that same location.
+         */
         {
             if (e.type == SDL_FINGERDOWN) {
-                int ww = 0, wh = 0;
-                SDL_GetWindowSize(g_win, &ww, &wh);
-                if (ww > 0 && wh > 0) {
-                    int px = (int)(e.tfinger.x * ww);
-                    int py = (int)(e.tfinger.y * wh);
-                    if (px < 0) px = 0;
-                    if (py < 0) py = 0;
-                    if (px >= ww) px = ww - 1;
-                    if (py >= wh) py = wh - 1;
-                    to_game(px, py, &g_android_touch_x, &g_android_touch_y);
-                    g_android_touch_id = e.tfinger.fingerId;
-                    g_android_touch_active = 1;
-                    g_android_release_next_pump = 0;
-                    g_android_release_delay = 8;
-                    hle_input_mouse(WM_MOUSEMOVE, g_android_touch_x, g_android_touch_y);
-                    hle_input_mouse(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
-                }
+                g_android_touch_id = e.tfinger.fingerId;
+                g_android_touch_active = 1;
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
                 if (g_android_touch_active && e.tfinger.fingerId == g_android_touch_id) {
-                    g_android_release_next_pump = 1;
-                    g_android_release_delay = 8;
+                    int ww = 0, wh = 0, gx, gy;
+                    SDL_GetWindowSize(g_win, &ww, &wh);
+                    if (ww > 0 && wh > 0) {
+                        int px = (int)(e.tfinger.x * ww);
+                        int py = (int)(e.tfinger.y * wh);
+                        if (px < 0) px = 0;
+                        if (py < 0) py = 0;
+                        if (px >= ww) px = ww - 1;
+                        if (py >= wh) py = wh - 1;
+                        to_game(px, py, &gx, &gy);
+                        hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                        hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
+                        hle_input_mouse(WM_LBUTTONUP, gx, gy);
+                    }
+                    g_android_touch_active = 0;
                 }
                 continue;
             }
