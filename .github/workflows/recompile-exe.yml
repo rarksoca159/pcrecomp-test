@@ -1,0 +1,71 @@
+name: Recompile a 32-bit Windows EXE
+
+on:
+  workflow_dispatch:
+    inputs:
+      binary_path:
+        description: "Repository-relative path to the EXE (for example input/SpinWin.exe)"
+        required: true
+        default: "input/SpinWin.exe"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  recompile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install capstone pefile lief unicorn cryptography
+
+      - name: Validate executable
+        env:
+          BINARY_PATH: ${{ inputs.binary_path }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path.cwd().resolve()
+          relative = Path(os.environ["BINARY_PATH"])
+          if relative.is_absolute() or ".." in relative.parts:
+              raise SystemExit("Use a repository-relative path without '..'.")
+          binary = (root / relative).resolve()
+          if not binary.is_relative_to(root) or not binary.is_file():
+              raise SystemExit(f"Executable not found inside repository: {relative}")
+          with binary.open("rb") as f:
+              if f.read(2) != b"MZ":
+                  raise SystemExit("The selected file is not a Windows MZ executable.")
+          print(f"Input executable: {binary}")
+          PY
+
+      - name: Generate lifted C code
+        env:
+          BINARY_PATH: ${{ inputs.binary_path }}
+        run: |
+          mkdir -p reconstructed
+          python -m tools "$BINARY_PATH" --all \
+            --output reconstructed/c \
+            --functions-json reconstructed/functions.json \
+            --pe-json reconstructed/pe-analysis.json \
+            --stubs reconstructed/import-stubs.c
+
+      - name: Upload generated files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconstructed-c-${{ github.run_number }}
+          path: reconstructed/
+          if-no-files-found: warn
+          retention-days: 14
