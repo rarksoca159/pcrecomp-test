@@ -128,6 +128,7 @@ if(ANDROID_ABI STREQUAL "armeabi-v7a")
 endif()
 
 
+# Android compatibility validation follows the API-23 Winsock fallback.
 # Link the reconstructed engine and Win32 compatibility objects into the
 # Android native library. SDL_main remains on the safe graphics test until
 # runtime launch validation is complete.
