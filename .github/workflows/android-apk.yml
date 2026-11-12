@@ -1,5 +1,5 @@
 name: Build Spin & Win Android APK
-# Rebuild Android APK after correcting touch-to-game coordinate mapping
+# Rebuild Android APK after native finger down/up touch handling
 on:
   workflow_dispatch:
   push:
