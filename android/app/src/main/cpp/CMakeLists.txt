@@ -71,3 +71,14 @@ target_include_directories(spinwin_win32hle PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
 )
 target_compile_features(spinwin_win32hle PRIVATE c_std_11)
+
+# Compile the Android tap-to-Win32 input adapter as a separate object. It is
+# not linked into the test screen yet; the game host will consume it once the
+# PE runtime and SDL-backed display are connected.
+add_library(spinwin_android_input OBJECT android_input_bridge.c)
+target_include_directories(spinwin_android_input PRIVATE
+    ${SPINWIN_HLE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
+)
+target_link_libraries(spinwin_android_input PRIVATE SDL2-static)
+target_compile_features(spinwin_android_input PRIVATE c_std_11)
