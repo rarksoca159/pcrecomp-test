@@ -5,14 +5,14 @@ playable build of Spin & Win**.
 
 ## Current status
 
-- The launcher can import the extracted game folder through Android's folder picker.
-- The Android NDK build fetches the official SDL 2.30.11 source and links its
-  static library into the app's native JNI library for both configured Android
-  ABIs.
-- The app reports the linked SDL2 version at startup. This confirms native
-  SDL2 is present in the APK; it does not yet mean an SDL display or the game
-  engine is running.
-- The Play button remains disabled until the Win32 guest runtime, reconstructed
+- The launcher imports the extracted game folder through Android's folder picker.
+- SDL 2.30.11 is built from the official source and linked into the native JNI
+  library for the configured Android ABIs.
+- SDL's Android Java glue is included from the same pinned SDL release.
+- **TEST SDL2 GRAPHICS + TOUCH** opens a separate SDL activity. The native test
+  draws an animated wheel-like graphic and displays a touch crosshair. This is
+  a graphics/input plumbing test, not the original game.
+- **PLAY SPIN & WIN** remains disabled until the Win32 guest runtime, reconstructed
   SpinWin code, graphics, input and audio are integrated and tested.
 
 ## Build
@@ -28,10 +28,11 @@ CMake uses FetchContent to clone the official SDL repository at the pinned
 
 ## Next engineering steps
 
-1. Add SDL's Android Java activity glue and start a real SDL window/surface.
+1. Verify the SDL test activity on a physical ARM64 Android device.
 2. Port the portable pcrecomp Win32 HLE runtime to Android/SDL.
 3. Integrate the SpinWin lifted C output, guest memory, PE loader and imports.
 4. Implement the FMOD compatibility layer and touch-to-mouse input.
-5. Enable Play only after the game reaches a real first frame on an ARM64 device.
+5. Enable Play only after the original game reaches a real first frame on Android.
 
 See [PORTING_PLAN.md](PORTING_PLAN.md) for the architecture and acceptance tests.
+The SDL2 license is included in [SDL-LICENSE.txt](SDL-LICENSE.txt).
