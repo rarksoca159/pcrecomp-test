@@ -1,11 +1,12 @@
 package com.arcadelab.spinwin
 
 import org.libsdl.app.SDLActivity
+import java.io.File
 
-/**
- * Dedicated SDL2 test surface. The game launcher remains a normal AndroidX activity.
- * SDL2 is linked statically into spinwin_android, so load only that library.
- */
+/** Runs SpinWin.exe through the reconstructed Win32 HLE runtime. */
 class SDLGameActivity : SDLActivity() {
     protected override fun getLibraries(): Array<String> = arrayOf("spinwin_android")
+
+    protected override fun getArguments(): Array<String> =
+        arrayOf(File(filesDir, "spinwin").absolutePath)
 }
