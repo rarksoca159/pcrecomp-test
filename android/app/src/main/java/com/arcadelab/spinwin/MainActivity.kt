@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     "Some expected files are missing. Select the main 'Spin & Win' folder."
                 }
-                playButton.isEnabled = false
+                playButton.isEnabled = valid
             } catch (e: Exception) {
                 status.text = "Import failed: ${e.message ?: "unknown error"}"
             }
@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
         playButton = Button(this).apply {
             text = "PLAY SPIN & WIN"; isEnabled = false
             setOnClickListener {
-                Toast.makeText(this@MainActivity, "The original game engine is not integrated yet.", Toast.LENGTH_LONG).show()
+                startActivity(Intent(this@MainActivity, SDLGameActivity::class.java))
             }
         }
         layout.addView(playButton)
@@ -91,8 +91,11 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshStatus() {
         val runtime = nativeEngineStatus()
-        status.text = if (File(gameDir, "SpinWin.exe").exists())
-            "$runtime\nGame files are present. SDL2 test is available; game engine is still in progress."
+        val valid = File(gameDir, "SpinWin.exe").exists() &&
+            File(gameDir, "Graphics").isDirectory && File(gameDir, "Audio").isDirectory
+        playButton.isEnabled = valid
+        status.text = if (valid)
+            "$runtime\nGame files are ready. Tap PLAY SPIN & WIN."
         else "$runtime\nChoose the extracted 'Spin & Win' game folder to import its files."
     }
 
