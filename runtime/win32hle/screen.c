@@ -846,11 +846,22 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /* Convert Android's normalized finger position through the same
-         * viewport/letterbox mapping used by a real SDL mouse, then deliver
-         * one complete Win32 left click. This keeps taps aligned at every
-         * screen size and avoids the move-only first tap. */
-        if (e.type == SDL_FINGERDOWN) {
+        /* Native Android finger input. Keep the primary finger's left
+         * button down for the duration of the touch so both queued Win32
+         * messages and games polling button state can observe the press. */
+        if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
+            static SDL_FingerID active_finger;
+            static int finger_active;
+            int is_down = e.type == SDL_FINGERDOWN;
+            int is_up = e.type == SDL_FINGERUP;
+            if (is_down) {
+                if (finger_active) continue;
+                active_finger = e.tfinger.fingerId;
+                finger_active = 1;
+            } else if (!finger_active || e.tfinger.fingerId != active_finger) {
+                continue;
+            }
+
             int ww = 0, wh = 0, gx, gy;
             SDL_GetWindowSize(g_win, &ww, &wh);
             if (ww > 0 && wh > 0) {
@@ -862,8 +873,13 @@ void hle_screen_pump(void) {
                 if (py >= wh) py = wh - 1;
                 to_game(px, py, &gx, &gy);
                 hle_input_mouse(WM_MOUSEMOVE, gx, gy);
-                hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
-                hle_input_mouse(WM_LBUTTONUP, gx, gy);
+                if (is_down) hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
+                if (is_up) {
+                    hle_input_mouse(WM_LBUTTONUP, gx, gy);
+                    finger_active = 0;
+                }
+            } else if (is_up) {
+                finger_active = 0;
             }
             continue;
         }
