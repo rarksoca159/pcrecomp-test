@@ -886,6 +886,29 @@ static int g_android_touch_down_pending;
 static int g_android_touch_release_pending;
 static int g_android_touch_button_down;
 static int g_android_touch_x, g_android_touch_y;
+/* Temporary Android accessibility shortcuts, deliberately available in every
+ * game state while testing: hold 3 seconds to type "Player", double-tap Enter. */
+static Uint32 g_android_hold_started;
+static int g_android_hold_typed;
+static Uint32 g_android_last_tap_tick;
+static float g_android_last_tap_x, g_android_last_tap_y;
+
+static void android_send_key(uint32_t vk) {
+    hle_input_key(1, vk, 0);
+    hle_input_key(0, vk, 0);
+}
+
+static void android_type_player(void) {
+    /* Send real Windows key events, including Shift for the initial capital. */
+    hle_input_key(1, 0x10, 0); /* VK_SHIFT */
+    android_send_key('P');
+    hle_input_key(0, 0x10, 0);
+    android_send_key('L');
+    android_send_key('A');
+    android_send_key('Y');
+    android_send_key('E');
+    android_send_key('R');
+}
 
 static int android_touch_position(float nx, float ny, int *gx, int *gy) {
     int ww = 0, wh = 0, px, py;
@@ -934,6 +957,8 @@ void hle_screen_pump(void) {
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
+                    g_android_hold_started = SDL_GetTicks();
+                    g_android_hold_typed = 0;
                     g_android_touch_x = gx, g_android_touch_y = gy;
                     /* Move first. The game gets a render/update cycle before
                      * the press is delivered from primary_changed(). */
@@ -966,6 +991,24 @@ void hle_screen_pump(void) {
                     if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                         g_android_touch_x = gx, g_android_touch_y = gy;
                         hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
+                    }
+                    /* A second quick tap at roughly the same place sends Enter. */
+                    if (!g_android_hold_typed) {
+                        Uint32 now = SDL_GetTicks();
+                        float dx = e.tfinger.x - g_android_last_tap_x;
+                        float dy = e.tfinger.y - g_android_last_tap_y;
+                        if (g_android_last_tap_tick &&
+                            (Uint32)(now - g_android_last_tap_tick) <= 400 &&
+                            dx * dx + dy * dy <= 0.0064f) {
+                            android_send_key(0x0D); /* VK_RETURN */
+                            g_android_last_tap_tick = 0;
+                        } else {
+                            g_android_last_tap_tick = now;
+                            g_android_last_tap_x = e.tfinger.x;
+                            g_android_last_tap_y = e.tfinger.y;
+                        }
+                    } else {
+                        g_android_last_tap_tick = 0;
                     }
                     /* Even a very quick tap releases only after its deferred
                      * touch-down has been delivered. */
@@ -1068,6 +1111,15 @@ void hle_screen_pump(void) {
         default: break;
         }
     }
+#ifdef __ANDROID__
+    /* Check outside the SDL event loop so a stationary finger can reach 3s. */
+    if (g_android_touch_active && !g_android_hold_typed &&
+        (Uint32)(SDL_GetTicks() - g_android_hold_started) >= 3000) {
+        android_type_player();
+        g_android_hold_typed = 1;
+        g_android_last_tap_tick = 0;
+    }
+#endif
     if (hle_screen_poll_hook) hle_screen_poll_hook();
     present(0);
 #ifdef __ANDROID__
