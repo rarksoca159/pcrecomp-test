@@ -986,7 +986,14 @@ void hle_screen_pump(void) {
             if (h) hle_post_message(h, WM_CLOSE, 0, 0); else hle_exit(0);
             break;
         }
+        case SDL_TEXTINPUT:
+            if (SDL_IsTextInputActive()) hle_input_text(e.text.text);
+            break;
         case SDL_KEYDOWN: case SDL_KEYUP: {
+            /* While an edit control owns text input, SDL_TEXTINPUT carries
+             * the committed character (including its actual case). Do not
+             * also turn printable key events into duplicate WM_CHARs. */
+            if (SDL_IsTextInputActive() && e.key.keysym.sym >= 32 && e.key.keysym.sym <= 126) break;
             SDL_Scancode sc = e.key.keysym.scancode;
             /* a key the host keeps for itself (a mod switch): the game never sees it */
             if (hle_screen_key_hook && hle_screen_key_hook((int)sc, e.type == SDL_KEYDOWN)) break;
