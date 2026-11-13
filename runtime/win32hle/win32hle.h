@@ -183,6 +183,7 @@ void     hle_input_mouse(uint32_t message, int screen_x, int screen_y);   /* des
 void     hle_input_mouse_sync(uint32_t message, int screen_x, int screen_y); /* legacy synchronous mouse dispatch */
 void     hle_input_touch_sync(uint32_t message, int screen_x, int screen_y); /* native touch dispatch; no mouse state */
 void     hle_input_key(int down, uint32_t vk, uint32_t scan);
+void     hle_input_text(const char *utf8);                    /* committed host text -> WM_CHAR */
 void     hle_input_cursor(int screen_x, int screen_y);                    /* GetCursorPos, without a message */
 void     hle_input_key_state(uint32_t vk, int down);                      /* GetKeyState, without a message */
 void     hle_input_position(int *screen_x, int *screen_y);                /* where the cursor is */
