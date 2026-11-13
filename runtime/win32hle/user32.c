@@ -831,9 +831,6 @@ void hle_input_touch_sync(uint32_t message, int sx, int sy) {
     } else {
         target = hle_window_at(sx, sy, &cx, &cy);
     }
-    if (target && (message == HLE_WM_TOUCHDOWN || message == HLE_WM_TOUCHUP)) {
-        win_t *tx = W(target);
-    }
     if (target) hle_send(target, message,
                         message == HLE_WM_TOUCHUP ? 0u : 1u,
                         ((uint32_t)(cy & 0xFFFF) << 16) |
