@@ -1342,6 +1342,10 @@ static uint32_t dlg_call(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
 }
 static uint32_t dialog_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
     uint32_t h = x->hwnd;
+    /* Do not let an outside touch or system close request dismiss a modal
+     * popup before its own controls can handle input. The X control sends
+     * its normal child-button WM_COMMAND and is unaffected by this guard. */
+    if (m == WM_CLOSE) return 0;
     uint32_t r = dlg_call(x, m, w, l);
     if (!(x = W(h))) return r;
     if (r) {
@@ -1351,7 +1355,6 @@ static uint32_t dialog_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
         return x->msgresult;
     }
     switch (m) {
-    case WM_CLOSE: q_push(h, WM_COMMAND, IDCANCEL, 0); return 0;
     case WM_PAINT: x->inval = 0; return 0;
     case WM_ERASEBKGND: return 1;
     case WM_GETDLGCODE: return 0;
