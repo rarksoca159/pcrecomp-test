@@ -697,7 +697,8 @@ uint32_t hle_window_at(int sx, int sy, int *cx, int *cy) {
     int bd = -1, bseq = 0;
     for (int i = 0; i < MAX_WIN; i++) {
         win_t *x = &g_win[i];
-        if (!x->used || !visible(x) || (x->style & WS_DISABLED) || x->kind == K_STATIC) continue;
+        if (!x->used || !visible(x) || (x->style & WS_DISABLED) ||
+            (x->kind == K_STATIC && !(x->style & 0x100u))) continue;
         int ox, oy;
         origin(x, &ox, &oy);
         if (sx < ox || sy < oy || sx >= ox + x->w || sy >= oy + x->h) continue;
