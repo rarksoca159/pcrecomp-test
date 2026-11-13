@@ -979,10 +979,8 @@ void hle_screen_pump(void) {
             if (vk) hle_input_key(e.type == SDL_KEYDOWN, (uint32_t)vk, scan_of(e.key.keysym.scancode));
             break;
         }
+#ifndef __ANDROID__
         case SDL_MOUSEMOTION: {
-#ifdef __ANDROID__
-            if (e.motion.which == SDL_TOUCH_MOUSEID) break;
-#endif
             if (g_rel) {                                 /* movement alone, in game pixels as the picture shows them */
                 SDL_Rect pd = to_points(g_dst);
                 int w = g_src_w, h = g_src_h, bpp;
@@ -1000,9 +998,6 @@ void hle_screen_pump(void) {
             break;
         }
         case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: {
-#ifdef __ANDROID__
-            if (e.button.which == SDL_TOUCH_MOUSEID) break;
-#endif
             if (g_released && g_confine && e.type == SDL_MOUSEBUTTONDOWN) {   /* the click that takes the mouse back */
                 g_released = 0, g_regrab_up = 1;
                 break;
@@ -1022,6 +1017,8 @@ void hle_screen_pump(void) {
             if (y) hle_input_wheel(y * 120);
             break;
         }
+
+#endif /* !__ANDROID__: Android guest input is native finger touch only */
         case SDL_WINDOWEVENT:
             if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) g_menu_depth = 0;   /* placed for the old size */
             if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED || e.window.event == SDL_WINDOWEVENT_EXPOSED) g_shown_seq = ~0u;
