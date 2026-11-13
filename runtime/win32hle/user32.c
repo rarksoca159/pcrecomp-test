@@ -740,6 +740,27 @@ void hle_input_mouse(uint32_t message, int sx, int sy) {
     if (t) q_push(t, message, mk_state(), ((uint32_t)(cy & 0xFFFF) << 16) | (uint32_t)(cx & 0xFFFF));
     if (hle_input_hook) hle_input_hook();
 }
+
+/* Android touch must update the guest window's hover/selection state before
+ * its button-down is queued. Some games filter PeekMessage to button messages,
+ * which can make an earlier queued WM_MOUSEMOVE get skipped until after the
+ * click. Deliver this one movement synchronously, at the exact touch point. */
+void hle_input_mouse_move_sync(int sx, int sy) {
+    g_raw_x += sx - g_cursor_x, g_raw_y += sy - g_cursor_y;
+    g_cursor_x = sx, g_cursor_y = sy;
+    int cx, cy;
+    uint32_t t;
+    if (g_capture && W(g_capture)) {
+        int ox, oy;
+        origin(W(g_capture), &ox, &oy);
+        t = g_capture, cx = sx - ox, cy = sy - oy;
+    } else {
+        t = hle_window_at(sx, sy, &cx, &cy);
+    }
+    if (t) hle_send(t, WM_MOUSEMOVE, mk_state(),
+                    ((uint32_t)(cy & 0xFFFF) << 16) | (uint32_t)(cx & 0xFFFF));
+    if (hle_input_hook) hle_input_hook();
+}
 void hle_input_key(int down, uint32_t vk, uint32_t scan) {
     vk &= 0xFF;
     if (down) g_keys[vk] = (uint8_t)(0x80 | ((g_keys[vk] & 1) ^ !(g_keys[vk] & 0x80)));
