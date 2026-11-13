@@ -3304,9 +3304,16 @@ L_0040F79B:
     RECOMP_FLAGS_OUT(); esp += 20; return; /* 0x0040F7A3: ret 0x10 */
 
 L_0040F7A6:
+#ifdef __ANDROID__
+    /* Android uses private touch gesture messages; the following three
+     * cases share the game's original pointer-control logic without ever
+     * posting WM_MOUSE messages or changing the virtual mouse state. */
+    eax = esi + (-0x8001); /* HLE_WM_TOUCHMOVE .. HLE_WM_TOUCHUP */
+    _flag_a = (uint32_t)(eax); _flag_b = (uint32_t)(2);
+#else
     eax = esi + (-0x200); /* 0x0040F7A6: lea eax, [esi - 0x200] */
-    /* cmp eax, 6 */ /* 0x0040F7AC: cmp eax, 6 */
     _flag_a = (uint32_t)(eax); _flag_b = (uint32_t)(6);
+#endif
     _cf = (uint32_t)CMP_B(_flag_a, _flag_b);
     _flag_k = FK_CMP;
     if (CMP_A(_flag_a, _flag_b)) goto L_0040F6BE; /* 0x0040F7AF: ja 0x40f6be */
