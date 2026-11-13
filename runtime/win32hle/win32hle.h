@@ -193,6 +193,7 @@ void     hle_input_raw(int *x, int *y);                                   /* the
 extern void (*hle_input_relative_hook)(int on);                           /* a game holds the mouse for its movement alone (an exclusive DirectInput mouse) */
 uint8_t  hle_input_vk(uint32_t vk);                                       /* a key or button's state: bit 7 down */
 extern void (*hle_input_hook)(void);                                      /* after hle_input_mouse/_key: the state changed */
+extern void (*hle_text_input_hook)(int on);                                /* show or hide the host's text keyboard */
 uint32_t hle_window_at(int screen_x, int screen_y, int *client_x, int *client_y);
 uint32_t hle_focus_window(void);
 uint32_t hle_send(uint32_t hwnd, uint32_t msg, uint32_t wParam, uint32_t lParam);   /* SendMessageA */
