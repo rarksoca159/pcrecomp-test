@@ -774,6 +774,10 @@ void hle_input_mouse_sync(uint32_t message, int sx, int sy) {
 void hle_input_touch_sync(uint32_t message, int sx, int sy) {
     if (message != HLE_WM_TOUCHMOVE && message != HLE_WM_TOUCHDOWN &&
         message != HLE_WM_TOUCHUP) return;
+    /* GetCursorPos reports the latest pointer location, which is the finger
+     * while Android touch is active. No mouse buttons or DirectInput deltas
+     * are changed here. */
+    g_cursor_x = sx, g_cursor_y = sy;
     int cx, cy;
     uint32_t target;
     if (g_capture && W(g_capture)) {
