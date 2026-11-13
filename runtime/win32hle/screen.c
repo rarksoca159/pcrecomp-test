@@ -640,12 +640,14 @@ static int menu_pointer(int x, int y, int action) {
 static int menu_event(const SDL_Event *e) {
     int x, y;
     switch (e->type) {
+#ifndef __ANDROID__
     case SDL_MOUSEMOTION:
         return menu_pointer(e->motion.x, e->motion.y, 0);
     case SDL_MOUSEBUTTONDOWN:
         return menu_pointer(e->button.x, e->button.y, 1);
     case SDL_MOUSEBUTTONUP:
         return menu_pointer(e->button.x, e->button.y, 2);
+#endif
     case SDL_KEYDOWN: menu_key(e->key.keysym.scancode); return 1;
     case SDL_KEYUP: case SDL_TEXTINPUT: case SDL_MOUSEWHEEL: return 1;
     default: return 0;
@@ -959,7 +961,9 @@ void hle_screen_pump(void) {
         }
 #endif
         if (g_menu_depth && menu_event(&e)) continue;
+#ifndef __ANDROID__
         if (g_menu_eat_up && e.type == SDL_MOUSEBUTTONUP) { g_menu_eat_up = 0; continue; }
+#endif
         switch (e.type) {
         case SDL_QUIT: {
             uint32_t h = hle_first_hwnd();
