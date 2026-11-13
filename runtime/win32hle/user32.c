@@ -778,6 +778,39 @@ void hle_input_touch_sync(uint32_t message, int sx, int sy) {
      * while Android touch is active. No mouse buttons or DirectInput deltas
      * are changed here. */
     g_cursor_x = sx, g_cursor_y = sy;
+#ifdef __ANDROID__
+    /* A visible top-level dialog is modal on Android: a finger tap outside
+     * its rectangle must not reach the game behind it and dismiss the popup.
+     * Keep the whole outside gesture swallowed, including its release. A
+     * control inside the dialog (including its existing X button) still gets
+     * the normal touch sequence. Captured controls, such as sliders, retain
+     * pointer capture so dragging continues to work. */
+    static int outside_modal_gesture;
+    if (message == HLE_WM_TOUCHDOWN) {
+        outside_modal_gesture = 0;
+        if (!g_capture || !W(g_capture)) {
+            win_t *modal = NULL;
+            for (int i = 0; i < MAX_WIN; i++) {
+                win_t *x = &g_win[i];
+                if (!x->used || x->kind != K_DIALOG || x->parent ||
+                    !(x->style & WS_VISIBLE) || !visible(x)) continue;
+                if (!modal || x->seq > modal->seq) modal = x;
+            }
+            if (modal) {
+                int ox, oy;
+                origin(modal, &ox, &oy);
+                if (sx < ox || sy < oy || sx >= ox + modal->w || sy >= oy + modal->h) {
+                    outside_modal_gesture = 1;
+                    return;
+                }
+            }
+        }
+    }
+    if (outside_modal_gesture) {
+        if (message == HLE_WM_TOUCHUP) outside_modal_gesture = 0;
+        return;
+    }
+#endif
     int cx, cy;
     uint32_t target;
     if (g_capture && W(g_capture)) {
