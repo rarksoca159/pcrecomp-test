@@ -2,77 +2,62 @@
 
 ## Current state
 
-The Android app is a launcher/import scaffold. It can select the extracted game
-folder and copy it into app-private storage. It does not execute `SpinWin.exe`;
-the Play button must remain disabled until the native engine can boot safely.
+The Android port now launches and plays Spin & Win through the reconstructed
+Win32 HLE runtime and SDL2. The launcher imports the original game folder into
+app-private storage, checks that the expected game files exist, and enables
+**PLAY SPIN & WIN** when they are present.
 
-The target is a 32-bit x86 Windows GUI executable. Its lifted C is not a
-standalone game: it needs the pcrecomp 32-bit guest CPU/memory/PE-loader runtime
-and implementations for the Windows APIs it imports.
+The SDL Android activity passes the imported folder to the native entry point.
+The native host maps that folder as the guest C: drive, initializes the Win32
+HLE runtime, opens the SDL game display, loads `SpinWin.exe` with the
+permissive PE/import loader, and runs the reconstructed C output.
 
-## Recommended architecture
+The separate **TEST SDL2 GRAPHICS + TOUCH** activity is still a diagnostic
+screen only. It is not the game renderer or a gameplay mode.
 
-Reuse pcrecomp's `runtime/win32hle` where practical. It already contains a
-software implementation of Win32 services including PE loading, guest memory,
-USER32 message handling, GDI, DirectDraw surfaces, keyboard/mouse input and
-DirectSound-style audio. Its display and audio backend currently uses SDL2 on
-desktop POSIX systems; this is not yet an Android backend.
+The port is playable, but keyboard entry, dialog interaction, and audio remain
+known issues. See [README.md](README.md).
 
-For Android, build an SDL2 Android application/native activity with the NDK,
-then adapt the host integration and filesystem paths to Android's app-private
-game directory. Keep the guest x86 address space and lifted code separate from
-the ARM64/ARM Android host CPU; do not try to compile the x86 guest instructions
-as native ARM code.
+## Implemented architecture
 
-## Milestones
+- Android launcher and game-folder import using the Storage Access Framework.
+- SDL2 2.30.11 Android integration and SDL Java activity glue.
+- JNI/native SDL entry point and imported-game-folder argument.
+- Guest C: drive mapping to the imported game directory.
+- Reconstructed SpinWin lifted C output and dispatch integration.
+- Win32 HLE host initialization, PE loading, permissive import binding, and
+  execution of the guest game.
+- SDL display and Android touch/input path sufficient to play the game.
 
-1. **Runtime build on Android**
-   - Add SDL2's Android build to the Gradle/NDK project.
-   - Compile the portable parts of `runtime/win32hle` and its dependencies.
-   - Resolve POSIX-only calls and Android linker/build differences.
-   - Show a native SDL2 test frame and accept touch input before loading the game.
+## Remaining milestones
 
-2. **Game executable loading**
-   - Bring the SpinWin lifted C output into the build as generated source (not
-     the original EXE).
-   - Integrate the matching recomp32 guest runtime, PE image layout and import
-     table for this exact executable.
-   - Map the imported game folder as the guest's virtual C: drive and verify
-     that the PE entry point can be reached.
+1. **Keyboard and text input**
+   - Make Android's on-screen keyboard appear at the correct time.
+   - Deliver committed text to the game's high-score name-entry control.
+   - Verify editing keys and Enter behavior.
 
-3. **Graphics and input**
-   - Connect the game's DirectDraw calls to the software surface backend.
-   - Present frames through SDL2 on Android in landscape orientation.
-   - Map touch input to the mouse actions the game expects; add back/navigation
-     handling without stealing in-game input.
+2. **Window/dialog input**
+   - Make buttons and dialogs respond correctly to a single tap.
+   - Check event dispatch, mouse button transitions, and dialog lifetime.
 
-4. **Audio**
-   - Implement the FMOD API surface actually imported/called by SpinWin, or
-     replace it with a compatible SDL2 audio shim.
+3. **Audio**
+   - Implement or complete the FMOD compatibility path used by Spin & Win,
+     using SDL2 audio where appropriate.
    - Verify music and sound effects independently.
 
-5. **Stability and release**
-   - Add tests for asset paths, save/config writes, pause/resume and activity
+4. **Stability and release**
+   - Retest asset paths, save/config writes, pause/resume, and activity
      recreation.
-   - Enable Play only after a real boot test passes on ARM64 Android.
-   - Produce and test a signed release APK.
+   - Verify display sizing and touch behavior on physical Android devices.
+   - Produce and test a release APK after the known issues are fixed.
 
-## Known risks / work still required
+## Technical notes
 
-- `win32hle` is documented as a Linux/macOS SDL2 host today; Android support
-  must be implemented and tested, not assumed.
-- Its existing audio shims include DirectSound and Miles-related support, but
-  the Spin & Win executable uses FMOD; FMOD compatibility is a separate task.
-- The reconstructed C is machine-code lifting, not original source. It must be
-  compiled with the exact generated headers, dispatch table, memory image and
-  import stubs for this game.
-- The current repository's Android module contains only a JNI placeholder; it
-  does not yet include the game's lifted C output or a runnable game host.
+The target executable is a 32-bit x86 Windows PE. Its lifted C runs as guest
+code through the pcrecomp runtime; it is not compiled as native ARM game code.
+The Android host and SDL2 provide the platform integration.
 
-## First acceptance test
-
-A debug APK on an ARM64 Android device starts an SDL2 screen, loads the
-SpinWin PE image through the guest loader, resolves all required imports (or
-reports the first unresolved import clearly), and displays the game's first
-frame. Until that test passes, the launcher must describe the engine as in
-development and Play must stay disabled.
+The reconstructed C is machine-code lifting, not original developer source.
+Some imported Windows/DLL behavior is provided by HLE shims or permissive
+fallback stubs, so additional API compatibility work may be needed if new
+gameplay paths expose unresolved behavior.
