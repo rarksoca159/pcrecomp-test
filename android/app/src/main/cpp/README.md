@@ -1,6 +1,11 @@
 # Native engine status
 
-This is only the Android NDK/JNI shell. The recovered C output is not compiled here yet.
-SpinWin.exe imports DirectDraw, USER32, GDI32, WinMM and FMOD. The lifted C also needs
-the matching pcrecomp runtime. A working port needs runtime integration, Win32 API
-compatibility, a graphics renderer, audio replacement and ARM64 validation.
+The Android native engine is integrated with SDL2 and the reconstructed
+Spin & Win guest code. The JNI/SDL entry point receives the imported game
+folder, maps it as the guest C: drive, initializes the Win32 HLE host, opens the
+game display, loads `SpinWin.exe`, and runs the lifted game code.
+
+The Android port is playable. Remaining known problems are Android keyboard
+and high-score name entry, unreliable single-click dialog interaction, and
+game audio. See [../../README.md](../../README.md) for the current status and
+testing priorities.
