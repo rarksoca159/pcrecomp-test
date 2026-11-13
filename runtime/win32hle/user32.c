@@ -745,9 +745,16 @@ void hle_input_mouse(uint32_t message, int sx, int sy) {
  * its button-down is queued. Some games filter PeekMessage to button messages,
  * which can make an earlier queued WM_MOUSEMOVE get skipped until after the
  * click. Deliver this one movement synchronously, at the exact touch point. */
-void hle_input_mouse_move_sync(int sx, int sy) {
+/* Android touch input is dispatched synchronously: deliver move and
+ * button messages to the guest window procedure in order, not through a
+ * queue where the game may filter out or postpone the move. */
+void hle_input_mouse_sync(uint32_t message, int sx, int sy) {
     g_raw_x += sx - g_cursor_x, g_raw_y += sy - g_cursor_y;
     g_cursor_x = sx, g_cursor_y = sy;
+    uint32_t vk = message == WM_LBUTTONDOWN || message == WM_LBUTTONUP ? 1 : message == WM_RBUTTONDOWN || message == WM_RBUTTONUP ? 2
+                : message == WM_MBUTTONDOWN || message == WM_MBUTTONUP ? 4 : 0;
+    int down = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN;
+    if (vk) g_keys[vk] = down ? (uint8_t)(0x80 | ((g_keys[vk] & 1) ^ 1)) : (uint8_t)(g_keys[vk] & 1);
     int cx, cy;
     uint32_t t;
     if (g_capture && W(g_capture)) {
@@ -757,7 +764,7 @@ void hle_input_mouse_move_sync(int sx, int sy) {
     } else {
         t = hle_window_at(sx, sy, &cx, &cy);
     }
-    if (t) hle_send(t, WM_MOUSEMOVE, mk_state(),
+    if (t) hle_send(t, message, mk_state(),
                     ((uint32_t)(cy & 0xFFFF) << 16) | (uint32_t)(cx & 0xFFFF));
     if (hle_input_hook) hle_input_hook();
 }
