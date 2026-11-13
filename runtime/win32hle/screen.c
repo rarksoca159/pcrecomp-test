@@ -849,6 +849,7 @@ static void confine_update(void) {
 /* One Android finger owns one native touch gesture. */
 static SDL_FingerID g_android_touch_id;
 static int g_android_touch_active;
+static int g_android_touch_x, g_android_touch_y;
 
 static int android_touch_position(float nx, float ny, int *gx, int *gy) {
     int ww = 0, wh = 0, px, py;
@@ -901,6 +902,7 @@ void hle_screen_pump(void) {
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
+                    g_android_touch_x = gx, g_android_touch_y = gy;
                     hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
                     hle_input_touch_sync(HLE_WM_TOUCHDOWN, gx, gy);
                 }
@@ -918,6 +920,7 @@ void hle_screen_pump(void) {
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
+                    g_android_touch_x = gx, g_android_touch_y = gy;
                     hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
                 }
                 continue;
@@ -928,8 +931,11 @@ void hle_screen_pump(void) {
                     g_menu_eat_up = 0;
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id) {
-                    if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
+                    gx = g_android_touch_x, gy = g_android_touch_y;
+                    if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
+                        g_android_touch_x = gx, g_android_touch_y = gy;
                         hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
+                    }
                     hle_input_touch_sync(HLE_WM_TOUCHUP, gx, gy);
                     g_android_touch_active = 0;
                 }
