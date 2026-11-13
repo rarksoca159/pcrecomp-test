@@ -629,7 +629,14 @@ static int menu_pointer(int x, int y, int action) {
         if (l >= 0 && row >= 0 && g_menu[l].sel != row) menu_select(l, row);
     } else if (action == 1) {
         g_menu_eat_up = 1;                               /* consume the matching release */
+#ifdef __ANDROID__
+        /* Android popups stay open when a finger lands outside them.
+         * The user closes them with the popup's own close control or by
+         * choosing an item; do not let an outside tap dismiss the menu. */
+        if (l >= 0 && row >= 0) menu_choose(l, row);
+#else
         if (l < 0) menu_close(); else if (row >= 0) menu_choose(l, row);
+#endif
     } else {
         g_menu_eat_up = 0;
     }
