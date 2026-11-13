@@ -849,6 +849,11 @@ static void confine_update(void) {
 /* One Android finger is one captured left-button gesture. */
 static SDL_FingerID g_android_touch_id;
 static int g_android_touch_active;
+/* A tap first moves the guest cursor. The click is delivered only after
+ * this pump has presented a frame with the new cursor position. */
+static int g_android_touch_click_pending;
+static int g_android_touch_release_pending;
+static int g_android_touch_x, g_android_touch_y;
 
 static int android_touch_position(float nx, float ny, int *gx, int *gy) {
     int ww = 0, wh = 0, px, py;
@@ -907,7 +912,9 @@ void hle_screen_pump(void) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
                     hle_input_mouse_sync(WM_MOUSEMOVE, gx, gy);
-                    hle_input_mouse_sync(WM_LBUTTONDOWN, gx, gy);
+                    g_android_touch_x = gx, g_android_touch_y = gy;
+                    g_android_touch_click_pending = 1;
+                    g_android_touch_release_pending = 0;
                 }
                 continue;
             }
@@ -924,6 +931,7 @@ void hle_screen_pump(void) {
                            e.tfinger.fingerId == g_android_touch_id &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     hle_input_mouse_sync(WM_MOUSEMOVE, gx, gy);
+                    g_android_touch_x = gx, g_android_touch_y = gy;
                 }
                 continue;
             }
@@ -934,9 +942,12 @@ void hle_screen_pump(void) {
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id) {
                     hle_input_position(&gx, &gy);
-                    if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
+                    if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                         hle_input_mouse_sync(WM_MOUSEMOVE, gx, gy);
-                    hle_input_mouse_sync(WM_LBUTTONUP, gx, gy);
+                        g_android_touch_x = gx, g_android_touch_y = gy;
+                    }
+                    /* Release after the deferred down, even for a very quick tap. */
+                    g_android_touch_release_pending = 1;
                     g_android_touch_active = 0;
                 }
                 continue;
@@ -1031,6 +1042,18 @@ void hle_screen_pump(void) {
     }
     if (hle_screen_poll_hook) hle_screen_poll_hook();
     present(0);
+#ifdef __ANDROID__
+    /* The new cursor position has now had a chance to reach the displayed
+     * frame. Only now press the button at that same position. */
+    if (g_android_touch_click_pending) {
+        hle_input_mouse_sync(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
+        g_android_touch_click_pending = 0;
+    }
+    if (g_android_touch_release_pending) {
+        hle_input_mouse_sync(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
+        g_android_touch_release_pending = 0;
+    }
+#endif
     confine_update();
 }
 
