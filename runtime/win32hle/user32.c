@@ -785,7 +785,8 @@ void hle_input_touch_sync(uint32_t message, int sx, int sy) {
     } else {
         target = hle_window_at(sx, sy, &cx, &cy);
     }
-    if (target) hle_send(target, message, 0,
+    if (target) hle_send(target, message,
+                        message == HLE_WM_TOUCHUP ? 0u : 1u,
                         ((uint32_t)(cy & 0xFFFF) << 16) |
                         (uint32_t)(cx & 0xFFFF));
 }
@@ -1196,7 +1197,7 @@ static uint32_t combobox_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
     }
     case 0x0141u: return 1;                              /* CB_LIMITTEXT */
     case 0x0155u: case 0x0156u: return 0;                /* CB_SETEXTENDEDUI / GETEXTENDEDUI */
-    case WM_LBUTTONDOWN:
+    case HLE_WM_TOUCHDOWN: case WM_LBUTTONDOWN:
         set_focus(x->hwnd);
         x->dropped = !x->dropped;
         notify(x, x->dropped ? 7u : 8u);                 /* CBN_DROPDOWN / CBN_CLOSEUP */
