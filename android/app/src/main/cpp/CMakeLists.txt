@@ -121,7 +121,7 @@ target_include_directories(spinwin_win32hle PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
     ${SPINWIN_TTF_INCLUDE_DIR}
 )
-target_link_libraries(spinwin_win32hle PRIVATE SDL2-static SDL2_ttf log)
+target_link_libraries(spinwin_win32hle PRIVATE SDL2-static SDL2_ttf)
 target_compile_features(spinwin_win32hle PRIVATE c_std_11)
 
 # Compile the Android tap-to-Win32 input adapter as a separate object. It is

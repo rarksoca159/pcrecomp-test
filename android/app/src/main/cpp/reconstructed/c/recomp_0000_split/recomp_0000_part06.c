@@ -7,12 +7,6 @@
 #include "recomp_0000_decls.h"
 #include <math.h>
 #include <string.h>
-#ifdef __ANDROID__
-#include <android/log.h>
-#define SPIN_TOUCH_TRACE(...) __android_log_print(ANDROID_LOG_INFO, "quit-trace", __VA_ARGS__)
-#else
-#define SPIN_TOUCH_TRACE(...) ((void)0)
-#endif
 
 void sub_0040E5E0(void) {
     int _fpu_cmp = 0;
@@ -3088,7 +3082,6 @@ L_0040F660:
     ebp = MEM32(esp + 0x4C); /* 0x0040F669: mov ebp, dword ptr [esp + 0x4c] */
     PUSH32(esp, esi); /* 0x0040F66D: push esi */
     esi = MEM32(esp + 0x54); /* 0x0040F66E: mov esi, dword ptr [esp + 0x54] */
-    SPIN_TOUCH_TRACE("game msg=%08x hwnd=%08x wp=%08x lp=%08x touchState=%08x/%08x callback=%08x", ebp, ebx, esi, MEM32(esp + 0x58), MEM32(0x8ED564), MEM32(0x8ECF2C), MEM32(0x8ECEF4));
     /* cmp esi, 0x105u */ /* 0x0040F672: cmp esi, 0x105 */
     _flag_a = (uint32_t)(esi); _flag_b = (uint32_t)(0x105u);
     _cf = (uint32_t)CMP_B(_flag_a, _flag_b);
