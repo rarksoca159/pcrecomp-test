@@ -786,8 +786,13 @@ void hle_input_touch_sync(uint32_t message, int sx, int sy) {
      * the normal touch sequence. Captured controls, such as sliders, retain
      * pointer capture so dragging continues to work. */
     static int outside_modal_gesture;
-    if (message == HLE_WM_TOUCHDOWN) {
-        outside_modal_gesture = 0;
+    static int touch_gesture_started;
+    /* screen.c sends TOUCHMOVE first at FINGERDOWN, then TOUCHDOWN after a
+     * frame. Guard that first MOVE too; otherwise it can reach the game
+     * behind a modal dialog before the outside-tap guard sees TOUCHDOWN. */
+    if ((message == HLE_WM_TOUCHMOVE && !touch_gesture_started) ||
+        (message == HLE_WM_TOUCHDOWN && !touch_gesture_started)) {
+        touch_gesture_started = 1;
         if (!g_capture || !W(g_capture)) {
             win_t *modal = NULL;
             for (int i = 0; i < MAX_WIN; i++) {
@@ -807,9 +812,13 @@ void hle_input_touch_sync(uint32_t message, int sx, int sy) {
         }
     }
     if (outside_modal_gesture) {
-        if (message == HLE_WM_TOUCHUP) outside_modal_gesture = 0;
+        if (message == HLE_WM_TOUCHUP) {
+            outside_modal_gesture = 0;
+            touch_gesture_started = 0;
+        }
         return;
     }
+    if (message == HLE_WM_TOUCHUP) touch_gesture_started = 0;
 #endif
     int cx, cy;
     uint32_t target;
