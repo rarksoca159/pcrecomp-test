@@ -176,8 +176,12 @@ void     hle_set_pump_hook(void (*fn)(void)); /* called when the queue is empty 
 /* The window manager's host side (user32.c): the screen size (the display
  * mode), input as a mouse and keyboard would give it, and what is where. */
 void     hle_set_screen_size(int w, int h);
-void     hle_input_mouse(uint32_t message, int screen_x, int screen_y);   /* WM_MOUSEMOVE, WM_LBUTTONDOWN, ... */
-void     hle_input_mouse_sync(uint32_t message, int screen_x, int screen_y); /* Android: dispatch touch events in order */
+#define HLE_WM_TOUCHMOVE  0x8001u
+#define HLE_WM_TOUCHDOWN  0x8002u
+#define HLE_WM_TOUCHUP    0x8003u
+void     hle_input_mouse(uint32_t message, int screen_x, int screen_y);   /* desktop mouse input */
+void     hle_input_mouse_sync(uint32_t message, int screen_x, int screen_y); /* legacy synchronous mouse dispatch */
+void     hle_input_touch_sync(uint32_t message, int screen_x, int screen_y); /* native touch dispatch; no mouse state */
 void     hle_input_key(int down, uint32_t vk, uint32_t scan);
 void     hle_input_cursor(int screen_x, int screen_y);                    /* GetCursorPos, without a message */
 void     hle_input_key_state(uint32_t vk, int down);                      /* GetKeyState, without a message */
