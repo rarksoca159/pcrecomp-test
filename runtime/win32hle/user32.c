@@ -186,7 +186,7 @@ static uint32_t call_proc(uint32_t proc, uint32_t h, uint32_t m, uint32_t w, uin
     if (!proc) return 0;
     if (g_msgtrace < 0) g_msgtrace = getenv("HLE_MSGTRACE") != NULL;
     win_t *x = g_msgtrace ? W(h) : NULL;
-    if (x && m != WM_MOUSEMOVE && m != 0x0084u && m != 0x0020u)
+    if (x && m != WM_MOUSEMOVE && m != HLE_WM_TOUCHMOVE && m != 0x0084u && m != 0x0020u)
         fprintf(stderr, "[msg] %05X %s#%u <- %04X %08X %08X\n", h, g_cls[x->cls].name, x->id, m, w, l);
     uint32_t a[4] = { h, m, w, l };
     uint32_t r = hle_call_guest(proc, 4, a);
