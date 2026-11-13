@@ -103,6 +103,15 @@ const char *hle_screen_settings(int *bars, int *fullscreen) {
 static uint32_t *g_conv;                                 /* 8-bit frames converted */
 static size_t g_conv_n;
 void (*hle_screen_frame_hook)(const uint8_t *px, int w, int h, int pitch, int bpp);   /* a recorder, a checksum */
+#ifdef __ANDROID__
+static void android_text_input(int on) {
+    if (on) SDL_StartTextInput();
+    else SDL_StopTextInput();
+}
+void (*hle_text_input_hook)(int on) = android_text_input;
+#else
+void (*hle_text_input_hook)(int on);
+#endif
 /* A host's own picture at twice the size (an HD layer): fills out with 2w x
  * 2h XRGB from the 16-bit frame and returns 1, or returns 0 for the 1x. */
 int (*hle_screen_compose_hook)(const uint8_t *px16, int pitch, int w, int h, uint32_t *out);
