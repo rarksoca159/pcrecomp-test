@@ -853,6 +853,7 @@ static int g_android_touch_active;
  * this pump has presented a frame with the new cursor position. */
 static int g_android_touch_click_pending;
 static int g_android_touch_release_pending;
+static int g_android_touch_button_down;
 static int g_android_touch_x, g_android_touch_y;
 
 static int android_touch_position(float nx, float ny, int *gx, int *gy) {
@@ -907,7 +908,8 @@ void hle_screen_pump(void) {
                     me.button.x = (int)(e.tfinger.x * ww);
                     me.button.y = (int)(e.tfinger.y * wh);
                     menu_event(&me);
-                } else if (!g_android_touch_active &&
+                } else if (!g_android_touch_active && !g_android_touch_click_pending &&
+                           !g_android_touch_button_down && !g_android_touch_release_pending &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
@@ -1043,16 +1045,8 @@ void hle_screen_pump(void) {
     if (hle_screen_poll_hook) hle_screen_poll_hook();
     present(0);
 #ifdef __ANDROID__
-    /* The new cursor position has now had a chance to reach the displayed
-     * frame. Only now press the button at that same position. */
-    if (g_android_touch_click_pending) {
-        hle_input_mouse_sync(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
-        g_android_touch_click_pending = 0;
-    }
-    if (g_android_touch_release_pending) {
-        hle_input_mouse_sync(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
-        g_android_touch_release_pending = 0;
-    }
+    /* Touch clicks are sent by primary_changed(), after the game has drawn
+     * and presented a frame using the new cursor position. */
 #endif
     confine_update();
 }
@@ -1081,6 +1075,20 @@ static void primary_changed(void) {
     if (!flip && now - g_last_present < 15) return;
     if (now - last_events >= 100) SDL_PumpEvents(), last_events = now;
     present(flip);
+#ifdef __ANDROID__
+    /* Do not press on the same pump that received the finger. The guest must
+     * first run its own update/draw path so its in-game arrow can reach the
+     * touched position. This hook runs after the updated primary is shown. */
+    if (g_android_touch_click_pending) {
+        hle_input_mouse(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
+        g_android_touch_click_pending = 0;
+        g_android_touch_button_down = 1;
+    } else if (g_android_touch_release_pending && g_android_touch_button_down) {
+        hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
+        g_android_touch_release_pending = 0;
+        g_android_touch_button_down = 0;
+    }
+#endif
 }
 
 int hle_screen_open(const char *title, int fullscreen, int headless) {
