@@ -3,10 +3,9 @@
 
 #include <stdint.h>
 
-/* Win32 messages used by win32hle's hle_input_mouse API. */
-#define SW_WM_MOUSEMOVE   0x0200u
-#define SW_WM_LBUTTONDOWN 0x0201u
-#define SW_WM_LBUTTONUP   0x0202u
+static SDL_FingerID g_touch_id;
+static int g_touch_active;
+static int g_touch_x, g_touch_y;
 
 static int clamp_coord(int value, int limit) {
     if (value < 0) return 0;
@@ -14,27 +13,37 @@ static int clamp_coord(int value, int limit) {
     return value;
 }
 
-/*
- * Spin & Win uses a simple left-click control scheme. Treat each Android tap
- * as one complete click at the tapped location. Do not emulate a held button,
- * dragging, right-click, or multi-touch.
- */
+/* Optional Android bridge: forward the complete finger gesture through the
+ * native touch API. This deliberately does not synthesize USER32 mouse input. */
 int spinwin_android_forward_touch(const SDL_Event *event,
                                   int logical_w,
                                   int logical_h) {
     if (!event || logical_w <= 0 || logical_h <= 0) return 0;
 
-    if (event->type != SDL_FINGERDOWN) return 0;
+    if (event->type == SDL_FINGERDOWN) {
+        if (g_touch_active) return 0;
+        g_touch_id = event->tfinger.fingerId;
+        g_touch_active = 1;
+    } else if (!g_touch_active || event->tfinger.fingerId != g_touch_id ||
+               (event->type != SDL_FINGERMOTION && event->type != SDL_FINGERUP)) {
+        return 0;
+    }
 
-    const int x = clamp_coord((int)(event->tfinger.x * logical_w), logical_w);
-    const int y = clamp_coord((int)(event->tfinger.y * logical_h), logical_h);
+    if (event->type == SDL_FINGERDOWN || event->type == SDL_FINGERMOTION ||
+        event->type == SDL_FINGERUP) {
+        g_touch_x = clamp_coord((int)(event->tfinger.x * logical_w), logical_w);
+        g_touch_y = clamp_coord((int)(event->tfinger.y * logical_h), logical_h);
+    }
 
-    hle_input_cursor(x, y);
-    hle_input_mouse(SW_WM_MOUSEMOVE, x, y);
-
-    /* Synthesize a complete left click from one screen tap. */
-    hle_input_mouse(SW_WM_LBUTTONDOWN, x, y);
-    hle_input_mouse(SW_WM_LBUTTONUP, x, y);
-
+    if (event->type == SDL_FINGERDOWN) {
+        hle_input_touch_sync(HLE_WM_TOUCHMOVE, g_touch_x, g_touch_y);
+        hle_input_touch_sync(HLE_WM_TOUCHDOWN, g_touch_x, g_touch_y);
+    } else if (event->type == SDL_FINGERMOTION) {
+        hle_input_touch_sync(HLE_WM_TOUCHMOVE, g_touch_x, g_touch_y);
+    } else if (event->type == SDL_FINGERUP) {
+        hle_input_touch_sync(HLE_WM_TOUCHMOVE, g_touch_x, g_touch_y);
+        hle_input_touch_sync(HLE_WM_TOUCHUP, g_touch_x, g_touch_y);
+        g_touch_active = 0;
+    }
     return 1;
 }
