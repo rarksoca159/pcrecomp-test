@@ -1029,21 +1029,24 @@ void hle_screen_pump(void) {
     if (hle_screen_poll_hook) hle_screen_poll_hook();
     present(0);
 #ifdef __ANDROID__
-    /* Touch clicks are sent by primary_changed(), after the game has drawn
-     * and presented a frame using the new cursor position. */
 #endif
     confine_update();
 }
 
 static void present_gdi(void) { present(0); }
 
-/* The guest moved the cursor (SetCursorPos): move the real one with it. */
+/* SetCursorPos remains a harmless compatibility call on Android:
+ * there is no OS mouse cursor to warp; finger coordinates arrive as touch. */
 static void warp(int x, int y) {
+#ifdef __ANDROID__
+    (void)x; (void)y;
+#else
     int w, h, bpp;
     hle_dd_mode(&w, &h, &bpp);
-    if (!g_win || !g_ren || g_rel || g_dst.w <= 0 || w <= 0 || h <= 0) return;   /* relative: there is no pointer to move */
+    if (!g_win || !g_ren || g_rel || g_dst.w <= 0 || w <= 0 || h <= 0) return;
     SDL_Rect p = to_points((SDL_Rect){ g_dst.x + x * g_dst.w / w, g_dst.y + y * g_dst.h / h, 0, 0 });
     SDL_WarpMouseInWindow(g_win, p.x, p.y);
+#endif
 }
 
 /* The game drew into the primary. On the window's thread, show it (present
@@ -1068,7 +1071,7 @@ int hle_screen_open(const char *title, int fullscreen, int headless) {
     hle_gdi_window_hook = present_gdi;                   /* a GDI game's blit shows, pumping or not (a loading bar) */
     if (headless) return 0;
 #ifdef __ANDROID__
-    /* Our finger handler creates the mouse clicks; avoid duplicate SDL ones. */
+    /* Native finger events are handled directly; don't synthesize SDL mouse events. */
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
 #endif
     SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");      /* SIGINT and SIGTERM end the process: SDL would make them a close the game can refuse */
