@@ -846,15 +846,9 @@ static void confine_update(void) {
 #include <emscripten/threading.h>
 #endif
 #ifdef __ANDROID__
-/* One Android finger is one captured left-button gesture. */
+/* One Android finger owns one native touch gesture. */
 static SDL_FingerID g_android_touch_id;
 static int g_android_touch_active;
-/* A tap first moves the guest cursor. The click is delivered only after
- * this pump has presented a frame with the new cursor position. */
-static int g_android_touch_click_pending;
-static int g_android_touch_release_pending;
-static int g_android_touch_button_down;
-static int g_android_touch_x, g_android_touch_y;
 
 static int android_touch_position(float nx, float ny, int *gx, int *gy) {
     int ww = 0, wh = 0, px, py;
@@ -889,17 +883,12 @@ void hle_screen_pump(void) {
         }
 #endif
 #ifdef __ANDROID__
-        /*
-         * Native Android touch gesture. Keep the left button down for the
-         * lifetime of the finger, just as Windows does between
-         * WM_LBUTTONDOWN and WM_LBUTTONUP. This preserves SetCapture /
-         * ReleaseCapture behavior and removes the old timing-based click.
-         */
+        /* Native Android touch: dispatch distinct down/move/up events.
+         * No SDL mouse events or USER32 mouse state are synthesized. */
         {
             int gx, gy;
             if (e.type == SDL_FINGERDOWN) {
                 if (g_menu_depth) {
-                    /* Host menus consume the same press as desktop mouse input. */
                     SDL_Event me = {0};
                     int ww = 0, wh = 0;
                     SDL_GetWindowSize(g_win, &ww, &wh);
@@ -908,15 +897,12 @@ void hle_screen_pump(void) {
                     me.button.x = (int)(e.tfinger.x * ww);
                     me.button.y = (int)(e.tfinger.y * wh);
                     menu_event(&me);
-                } else if (!g_android_touch_active && !g_android_touch_click_pending &&
-                           !g_android_touch_button_down && !g_android_touch_release_pending &&
+                } else if (!g_android_touch_active &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
-                    hle_input_mouse_sync(WM_MOUSEMOVE, gx, gy);
-                    g_android_touch_x = gx, g_android_touch_y = gy;
-                    g_android_touch_click_pending = 1;
-                    g_android_touch_release_pending = 0;
+                    hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
+                    hle_input_touch_sync(HLE_WM_TOUCHDOWN, gx, gy);
                 }
                 continue;
             }
@@ -932,24 +918,19 @@ void hle_screen_pump(void) {
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
-                    hle_input_mouse_sync(WM_MOUSEMOVE, gx, gy);
-                    g_android_touch_x = gx, g_android_touch_y = gy;
+                    hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
                 }
                 continue;
             }
             if (e.type == SDL_FINGERUP) {
                 if (g_menu_depth || g_menu_eat_up) {
-                    /* The menu consumed the press; never leak its release to the game. */
+                    /* The host menu consumed the press; don't leak its release. */
                     g_menu_eat_up = 0;
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id) {
-                    hle_input_position(&gx, &gy);
-                    if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
-                        hle_input_mouse_sync(WM_MOUSEMOVE, gx, gy);
-                        g_android_touch_x = gx, g_android_touch_y = gy;
-                    }
-                    /* Release after the deferred down, even for a very quick tap. */
-                    g_android_touch_release_pending = 1;
+                    if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
+                        hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
+                    hle_input_touch_sync(HLE_WM_TOUCHUP, gx, gy);
                     g_android_touch_active = 0;
                 }
                 continue;
@@ -1075,20 +1056,6 @@ static void primary_changed(void) {
     if (!flip && now - g_last_present < 15) return;
     if (now - last_events >= 100) SDL_PumpEvents(), last_events = now;
     present(flip);
-#ifdef __ANDROID__
-    /* Do not press on the same pump that received the finger. The guest must
-     * first run its own update/draw path so its in-game arrow can reach the
-     * touched position. This hook runs after the updated primary is shown. */
-    if (g_android_touch_click_pending) {
-        hle_input_mouse(WM_LBUTTONDOWN, g_android_touch_x, g_android_touch_y);
-        g_android_touch_click_pending = 0;
-        g_android_touch_button_down = 1;
-    } else if (g_android_touch_release_pending && g_android_touch_button_down) {
-        hle_input_mouse(WM_LBUTTONUP, g_android_touch_x, g_android_touch_y);
-        g_android_touch_release_pending = 0;
-        g_android_touch_button_down = 0;
-    }
-#endif
 }
 
 int hle_screen_open(const char *title, int fullscreen, int headless) {
