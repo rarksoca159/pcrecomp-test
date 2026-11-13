@@ -858,6 +858,14 @@ void hle_input_key(int down, uint32_t vk, uint32_t scan) {
     if (t) q_push(t, alt || vk == VK_MENU || vk == 0x79 ? (down ? WM_SYSKEYDOWN : WM_SYSKEYUP) : (down ? WM_KEYDOWN : WM_KEYUP), vk, l);
     if (hle_input_hook) hle_input_hook();
 }
+void hle_input_text(const char *utf8) {
+    win_t *x = W(g_focus);
+    if (!utf8 || !x || x->kind != K_EDIT) return;
+    /* The game's ANSI edit control stores single-byte characters. Accept
+     * ordinary ASCII names from Android's IME; ignore unsupported UTF-8. */
+    for (const unsigned char *p = (const unsigned char *)utf8; *p; p++)
+        if (*p >= 0x20 && *p < 0x7F) q_push(g_focus, WM_CHAR, *p, 0);
+}
 void hle_input_cursor(int sx, int sy) { g_cursor_x = sx, g_cursor_y = sy; }
 /* A mouse that reports movement, not a place (the host's relative mode):
  * all of it counts, and the cursor follows as far as the screen goes. */
