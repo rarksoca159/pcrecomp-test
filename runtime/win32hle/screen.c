@@ -617,23 +617,35 @@ static void menu_key(SDL_Scancode sc) {
                           sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER || sc == SDL_SCANCODE_SPACE))
         menu_choose(l, sel);
 }
-/* An event while the menu is open: the menu's, never the game's. */
+/* Pointer input for the host menu. Coordinates arrive in window points;
+ * the menu itself is drawn and hit-tested in renderer pixels. */
+static int menu_pointer(int x, int y, int action) {
+    int row = -1, l, pw, ph, ww, wh;
+    SDL_GetRendererOutputSize(g_ren, &pw, &ph);
+    SDL_GetWindowSize(g_win, &ww, &wh);
+    if (ww > 0 && wh > 0) x = x * pw / ww, y = y * ph / wh;
+    l = menu_hit(x, y, &row);
+    if (action == 0) {
+        if (l >= 0 && row >= 0 && g_menu[l].sel != row) menu_select(l, row);
+    } else if (action == 1) {
+        g_menu_eat_up = 1;                               /* consume the matching release */
+        if (l < 0) menu_close(); else if (row >= 0) menu_choose(l, row);
+    } else {
+        g_menu_eat_up = 0;
+    }
+    return 1;
+}
+
+/* Desktop mouse events still use the same menu pointer handler. */
 static int menu_event(const SDL_Event *e) {
-    int x, y, row = -1, l, pw, ph, ww, wh;
+    int x, y;
     switch (e->type) {
-    case SDL_MOUSEMOTION: case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP:
-        x = e->type == SDL_MOUSEMOTION ? e->motion.x : e->button.x;
-        y = e->type == SDL_MOUSEMOTION ? e->motion.y : e->button.y;
-        SDL_GetRendererOutputSize(g_ren, &pw, &ph);
-        SDL_GetWindowSize(g_win, &ww, &wh);
-        if (ww > 0 && wh > 0) x = x * pw / ww, y = y * ph / wh;
-        l = menu_hit(x, y, &row);
-        if (e->type == SDL_MOUSEMOTION) { if (l >= 0 && row >= 0 && g_menu[l].sel != row) menu_select(l, row); }
-        else if (e->type == SDL_MOUSEBUTTONDOWN) {
-            g_menu_eat_up = 1;                           /* a click that closes the menu: its release isn't the game's */
-            if (l < 0) menu_close(); else if (row >= 0) menu_choose(l, row);
-        } else g_menu_eat_up = 0;
-        return 1;
+    case SDL_MOUSEMOTION:
+        return menu_pointer(e->motion.x, e->motion.y, 0);
+    case SDL_MOUSEBUTTONDOWN:
+        return menu_pointer(e->button.x, e->button.y, 1);
+    case SDL_MOUSEBUTTONUP:
+        return menu_pointer(e->button.x, e->button.y, 2);
     case SDL_KEYDOWN: menu_key(e->key.keysym.scancode); return 1;
     case SDL_KEYUP: case SDL_TEXTINPUT: case SDL_MOUSEWHEEL: return 1;
     default: return 0;
@@ -896,14 +908,9 @@ void hle_screen_pump(void) {
             int gx, gy;
             if (e.type == SDL_FINGERDOWN) {
                 if (g_menu_depth) {
-                    SDL_Event me = {0};
                     int ww = 0, wh = 0;
                     SDL_GetWindowSize(g_win, &ww, &wh);
-                    me.type = SDL_MOUSEBUTTONDOWN;
-                    me.button.button = SDL_BUTTON_LEFT;
-                    me.button.x = (int)(e.tfinger.x * ww);
-                    me.button.y = (int)(e.tfinger.y * wh);
-                    menu_event(&me);
+                    menu_pointer((int)(e.tfinger.x * ww), (int)(e.tfinger.y * wh), 1);
                 } else if (!g_android_touch_active && !g_android_touch_down_pending &&
                            !g_android_touch_button_down && !g_android_touch_release_pending &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
@@ -920,13 +927,9 @@ void hle_screen_pump(void) {
             }
             if (e.type == SDL_FINGERMOTION) {
                 if (g_menu_depth) {
-                    SDL_Event me = {0};
                     int ww = 0, wh = 0;
                     SDL_GetWindowSize(g_win, &ww, &wh);
-                    me.type = SDL_MOUSEMOTION;
-                    me.motion.x = (int)(e.tfinger.x * ww);
-                    me.motion.y = (int)(e.tfinger.y * wh);
-                    menu_event(&me);
+                    menu_pointer((int)(e.tfinger.x * ww), (int)(e.tfinger.y * wh), 0);
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
