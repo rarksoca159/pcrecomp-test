@@ -56,13 +56,22 @@ target_link_libraries(spinwin_android PRIVATE SDL2-static)
 # object target first. It is intentionally not linked into the APK yet: the
 # Win32 HLE host, PE loader, and FMOD imports still need to be wired up.
 set(SPINWIN_RECON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/reconstructed)
+# Compile the verified split translation units. The monolithic source exceeds
+# practical source-reader/compiler limits and is not used by this Android build.
+file(GLOB SPINWIN_RECOMP_SPLIT_SOURCES CONFIGURE_DEPENDS
+    "${SPINWIN_RECON_DIR}/c/recomp_0000_split/recomp_0000_part*.c"
+)
+if(NOT SPINWIN_RECOMP_SPLIT_SOURCES)
+    message(FATAL_ERROR "No split recomp_0000 source files found")
+endif()
 add_library(spinwin_reconstructed OBJECT
-    ${SPINWIN_RECON_DIR}/c/recomp_0000.c
+    ${SPINWIN_RECOMP_SPLIT_SOURCES}
     ${SPINWIN_RECON_DIR}/c/recomp_dispatch.c
 )
 target_include_directories(spinwin_reconstructed PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../runtime/recomp32
     ${SPINWIN_RECON_DIR}/c
+    ${SPINWIN_RECON_DIR}/c/recomp_0000_split
 )
 target_compile_definitions(spinwin_reconstructed PRIVATE RECOMP_GENERATED_CODE)
 # The generated function bodies call other lifted functions before their
