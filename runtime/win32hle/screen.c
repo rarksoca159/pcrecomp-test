@@ -305,8 +305,13 @@ static void present(int flip) {
     if (bpp == 16) {
         int ww, wh;
         SDL_GetRendererOutputSize(g_ren, &ww, &wh);
+#ifdef __ANDROID__
+        /* Fill the full landscape display, stretching sideways only. */
+        g_dst.x = 0, g_dst.y = 0, g_dst.w = ww, g_dst.h = wh;
+#else
         if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
         else g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
+#endif
         if (g_mode == 4) {
             int k = ww / w < wh / h ? ww / w : wh / h;
             if (k < 1) k = 1;
@@ -370,11 +375,8 @@ static void present(int flip) {
     int ww, wh;
     SDL_GetRendererOutputSize(g_ren, &ww, &wh);
 #ifdef __ANDROID__
-    /* Fill the landscape display without distorting the game's aspect ratio.
-     * Overscan is centered and clipped by SDL, rather than leaving the game
-     * as a small centered picture with unused screen space. */
-    if ((long long)ww * h > (long long)wh * w) g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
-    else g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
+    /* Full landscape viewport: use the complete height and width. */
+    g_dst.x = 0, g_dst.y = 0, g_dst.w = ww, g_dst.h = wh;
 #else
     if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
     else g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
