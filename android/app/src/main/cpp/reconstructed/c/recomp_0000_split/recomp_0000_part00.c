@@ -8074,6 +8074,11 @@ void sub_00403190(void) {
     /* _st[8]/_fp_top/_fpu_cw are GLOBAL (shared x87 stack) */
     RECOMP_ENTER(0x00403190u);
 
+#ifdef __ANDROID__
+    /* Android touch keeps the guest pointer coordinates for hit-testing, but
+     * does not render the original mouse-cursor sprite over the game. */
+    RECOMP_FLAGS_OUT(); esp += 4; return;
+#else
 L_00403190:
     eax = MEM32(0x8ED55C); /* 0x00403190: mov eax, dword ptr [0x8ed55c] */
     /* test eax, eax */ /* 0x00403195: test eax, eax */
@@ -8106,6 +8111,7 @@ L_004031A2:
 
 L_004031BA:
     RECOMP_FLAGS_OUT(); esp += 4; return; /* 0x004031BA: ret  */
+#endif
 
 }
 
