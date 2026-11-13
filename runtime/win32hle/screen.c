@@ -906,7 +906,7 @@ void hle_screen_pump(void) {
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
-                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                    hle_input_mouse_move_sync(gx, gy);
                     hle_input_mouse(WM_LBUTTONDOWN, gx, gy);
                 }
                 continue;
@@ -923,7 +923,7 @@ void hle_screen_pump(void) {
                 } else if (g_android_touch_active &&
                            e.tfinger.fingerId == g_android_touch_id &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
-                    hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                    hle_input_mouse_move_sync(gx, gy);
                 }
                 continue;
             }
@@ -935,7 +935,7 @@ void hle_screen_pump(void) {
                            e.tfinger.fingerId == g_android_touch_id) {
                     hle_input_position(&gx, &gy);
                     if (android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy))
-                        hle_input_mouse(WM_MOUSEMOVE, gx, gy);
+                        hle_input_mouse_move_sync(gx, gy);
                     hle_input_mouse(WM_LBUTTONUP, gx, gy);
                     g_android_touch_active = 0;
                 }
