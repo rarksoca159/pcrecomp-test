@@ -15,6 +15,26 @@ playable build of Spin & Win**.
 - **PLAY SPIN & WIN** remains disabled until the Win32 guest runtime, reconstructed
   SpinWin code, graphics, input and audio are integrated and tested.
 
+## Known issues / TODO
+
+The following problems have been observed in the Android game port and remain
+to be fixed:
+
+1. **Android keyboard does not appear** — when the game asks the player to
+   enter a name for a new high score, the Android on-screen keyboard does not
+   appear, so the name cannot be entered.
+2. **Game dialogs respond unreliably** — dialogs such as the Exit confirmation
+   do not respond correctly to a normal single click; currently, clicking twice
+   quickly is sometimes needed before the dialog disappears or the action works.
+3. **Game sounds do not work** — audio is not currently playing correctly in
+   the Android port.
+
+The hold-to-type and double-tap Enter touch shortcuts were experiments while
+investigating the keyboard problem; they are not separate bugs.
+
+The full-screen white borders were fixed and are not part of this open-issues
+list. These three items are the current debugging priorities.
+
 ## Build
 
 Open this directory as an Android Gradle project, or run:
