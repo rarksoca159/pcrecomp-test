@@ -898,8 +898,12 @@ static void android_send_key(uint32_t vk) {
     hle_input_key(0, vk, 0);
 }
 
+extern void hle_input_text(const char *utf8);
+
 static void android_type_player(void) {
-    /* Send real Windows key events, including Shift for the initial capital. */
+    /* Deliver actual character messages for games with custom name-entry UI,
+     * then send key events for games that read the keyboard state directly. */
+    hle_input_text("Player");
     hle_input_key(1, 0x10, 0); /* VK_SHIFT */
     android_send_key('P');
     hle_input_key(0, 0x10, 0);
