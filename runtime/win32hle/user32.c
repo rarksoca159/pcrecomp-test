@@ -768,6 +768,27 @@ void hle_input_mouse_sync(uint32_t message, int sx, int sy) {
                     ((uint32_t)(cy & 0xFFFF) << 16) | (uint32_t)(cx & 0xFFFF));
     if (hle_input_hook) hle_input_hook();
 }
+/* Native touch is dispatched as a pointer gesture, not as a synthetic mouse.
+ * Capture is shared with controls because Win32 SetCapture is pointer capture. */
+void hle_input_touch_sync(uint32_t message, int sx, int sy) {
+    if (message != HLE_WM_TOUCHMOVE && message != HLE_WM_TOUCHDOWN &&
+        message != HLE_WM_TOUCHUP) return;
+    int cx, cy;
+    uint32_t target;
+    if (g_capture && W(g_capture)) {
+        int ox, oy;
+        origin(W(g_capture), &ox, &oy);
+        target = g_capture;
+        cx = sx - ox;
+        cy = sy - oy;
+    } else {
+        target = hle_window_at(sx, sy, &cx, &cy);
+    }
+    if (target) hle_send(target, message, 0,
+                        ((uint32_t)(cy & 0xFFFF) << 16) |
+                        (uint32_t)(cx & 0xFFFF));
+}
+
 void hle_input_key(int down, uint32_t vk, uint32_t scan) {
     vk &= 0xFF;
     if (down) g_keys[vk] = (uint8_t)(0x80 | ((g_keys[vk] & 1) ^ !(g_keys[vk] & 0x80)));
@@ -916,13 +937,13 @@ static uint32_t button_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
     case 0x00F3u: x->state = w != 0; invalidate(x, 0); return 0;   /* BM_SETSTATE */
     case 0x00F4u: x->style = (x->style & 0xFFFF0000u) | (w & 0xFFFF); invalidate(x, 0); return 0;  /* BM_SETSTYLE */
     case 0x00F5u: button_click(x); return 0;            /* BM_CLICK */
-    case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK:
+    case HLE_WM_TOUCHDOWN: case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK:
         if (bs == 7) return 0;                           /* a group box takes no clicks */
         x->state = 1, g_capture = h;
         set_focus(h);
         invalidate(x, 0);
         return 0;
-    case WM_LBUTTONUP: {
+    case HLE_WM_TOUCHUP: case WM_LBUTTONUP: {
         int was = x->state;
         int cx = (int16_t)(l & 0xFFFF), cy = (int16_t)(l >> 16);
         x->state = 0;
@@ -946,7 +967,7 @@ static uint32_t button_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
 static uint32_t static_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
     switch (m) {
     case WM_NCHITTEST: return x->style & 0x100u ? 1u : 0xFFFFFFFFu;   /* SS_NOTIFY, else HTTRANSPARENT */
-    case WM_LBUTTONDOWN: if (x->style & 0x100u) notify(x, 0); return 0;   /* STN_CLICKED */
+    case HLE_WM_TOUCHDOWN: case WM_LBUTTONDOWN: if (x->style & 0x100u) notify(x, 0); return 0;   /* STN_CLICKED */
     case 0x0172u: { uint32_t o = x->extra[0]; x->extra[0] = l; return o; }   /* STM_SETIMAGE */
     case 0x0173u: return x->extra[0];                    /* STM_GETIMAGE */
     case WM_PAINT:
@@ -997,7 +1018,7 @@ static uint32_t edit_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
         invalidate(x, 0);
         return 0;
     }
-    case WM_LBUTTONDOWN: set_focus(h); return 0;
+    case HLE_WM_TOUCHDOWN: case WM_LBUTTONDOWN: set_focus(h); return 0;
     case WM_SETFOCUS: notify(x, 0x0100u); invalidate(x, 0); return 0;   /* EN_SETFOCUS */
     case WM_KILLFOCUS: notify(x, 0x0200u); invalidate(x, 0); return 0;  /* EN_KILLFOCUS */
     case 0x00B0u:                                        /* EM_GETSEL */
@@ -1134,7 +1155,7 @@ static uint32_t listbox_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
     if (handled) return r;
     switch (m) {
     case WM_GETDLGCODE: return 0x1u | 0x2u;              /* DLGC_WANTARROWS | WANTCHARS... near enough */
-    case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK: {
+    case HLE_WM_TOUCHDOWN: case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK: {
         int i = x->top + (int16_t)(l >> 16) / (x->item_h ? x->item_h : 1);
         set_focus(x->hwnd);
         if (i >= 0 && i < x->nitems && i != x->cursel) {
@@ -1213,16 +1234,17 @@ static uint32_t trackbar_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
         return 0;
     }
     case 0x041Au: put_rect(l, 5, x->h / 2 - 2, x->w - 5, x->h / 2 + 2); return 0;   /* TBM_GETCHANNELRECT */
+    case HLE_WM_TOUCHDOWN: case HLE_WM_TOUCHMOVE: case HLE_WM_TOUCHUP:
     case WM_LBUTTONDOWN: case WM_MOUSEMOVE: case WM_LBUTTONUP: {
-        if (m == WM_MOUSEMOVE && !x->tracking) return 0;
-        if (m == WM_LBUTTONDOWN) x->tracking = 1, g_capture = h, set_focus(h);
+        if ((m == WM_MOUSEMOVE || m == HLE_WM_TOUCHMOVE) && !x->tracking) return 0;
+        if (m == WM_LBUTTONDOWN || m == HLE_WM_TOUCHDOWN) x->tracking = 1, g_capture = h, set_focus(h);
         int cx = (int16_t)(l & 0xFFFF), span = x->rmax - x->rmin, pos;
         pos = x->rmin + (span * (cx - 5) + (x->w - 10) / 2) / (x->w > 10 ? x->w - 10 : 1);
         x->pos = pos < x->rmin ? x->rmin : pos > x->rmax ? x->rmax : pos;
         invalidate(x, 0);
         win_t *p = W(x->parent);
-        if (p) hle_send(p->hwnd, x->style & 2u ? WM_VSCROLL : WM_HSCROLL, (m == WM_LBUTTONUP ? 4u : 5u) | (uint32_t)x->pos << 16, h);
-        if (m == WM_LBUTTONUP) {
+        if (p) hle_send(p->hwnd, x->style & 2u ? WM_VSCROLL : WM_HSCROLL, ((m == WM_LBUTTONUP || m == HLE_WM_TOUCHUP) ? 4u : 5u) | (uint32_t)x->pos << 16, h);
+        if (m == WM_LBUTTONUP || m == HLE_WM_TOUCHUP) {
             x->tracking = 0;
             if (g_capture == h) g_capture = 0;
             if ((p = W(x->parent))) hle_send(p->hwnd, x->style & 2u ? WM_VSCROLL : WM_HSCROLL, 8u /* TB_ENDTRACK */, h);
