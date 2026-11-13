@@ -54,7 +54,7 @@ known issues. See [README.md](README.md).
 ## Technical notes
 
 The target executable is a 32-bit x86 Windows PE. Its lifted C runs as guest
-code through the pcrecomp runtime; it is not compiled as native ARM game code.
+code through the pcrecomp (https://github.com/sp00nznet/pcrecomp) runtime; it is not compiled as native ARM game code.
 The Android host and SDL2 provide the platform integration.
 
 The reconstructed C is machine-code lifting, not original developer source.
