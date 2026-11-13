@@ -476,6 +476,8 @@ static void uncover(win_t *x) {
 static void destroy(uint32_t h) {
     win_t *x = W(h);
     if (!x || x->destroying) return;
+    fprintf(stderr, "[quit-trace] destroy hwnd=%05X class=%s id=%u title='%s' kind=%d parent=%05X owner=%05X\n",
+            h, g_cls[x->cls].name, x->id, x->text, x->kind, x->parent, x->owner);
     x->destroying = 1;
     uncover(x);
     for (int i = 0; i < MAX_WIN; i++)                    /* owned windows and children first */
@@ -774,6 +776,8 @@ void hle_input_mouse_sync(uint32_t message, int sx, int sy) {
 void hle_input_touch_sync(uint32_t message, int sx, int sy) {
     if (message != HLE_WM_TOUCHMOVE && message != HLE_WM_TOUCHDOWN &&
         message != HLE_WM_TOUCHUP) return;
+    if (message == HLE_WM_TOUCHDOWN || message == HLE_WM_TOUCHUP)
+        fprintf(stderr, "[quit-trace] touch msg=%04X x=%d y=%d capture=%05X\n", message, sx, sy, g_capture);
     /* GetCursorPos reports the latest pointer location, which is the finger
      * while Android touch is active. No mouse buttons or DirectInput deltas
      * are changed here. */
@@ -830,6 +834,11 @@ void hle_input_touch_sync(uint32_t message, int sx, int sy) {
         cy = sy - oy;
     } else {
         target = hle_window_at(sx, sy, &cx, &cy);
+    }
+    if (target && (message == HLE_WM_TOUCHDOWN || message == HLE_WM_TOUCHUP)) {
+        win_t *tx = W(target);
+        fprintf(stderr, "[quit-trace] touch target=%05X class=%s id=%u kind=%d client=%d,%d\n",
+                target, tx ? g_cls[tx->cls].name : "?", tx ? tx->id : 0, tx ? tx->kind : -1, cx, cy);
     }
     if (target) hle_send(target, message,
                         message == HLE_WM_TOUCHUP ? 0u : 1u,
@@ -1342,6 +1351,9 @@ static uint32_t dlg_call(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
 }
 static uint32_t dialog_proc(win_t *x, uint32_t m, uint32_t w, uint32_t l) {
     uint32_t h = x->hwnd;
+    if (m == WM_CLOSE || m == WM_COMMAND)
+        fprintf(stderr, "[quit-trace] dialog hwnd=%05X msg=%04X w=%08X l=%08X id=%u title='%s'\n",
+                h, m, w, l, x->id, x->text);
     /* Do not let an outside touch or system close request dismiss a modal
      * popup before its own controls can handle input. The X control sends
      * its normal child-button WM_COMMAND and is unaffected by this guard. */
@@ -1562,6 +1574,8 @@ static void u_DialogBoxIndirectParamA(void) {
 static void u_EndDialog(void) {
     win_t *d = W(A32(0));
     if (!d) RET(0, 2);
+    fprintf(stderr, "[quit-trace] EndDialog hwnd=%05X result=%u class=%s id=%u title='%s'\n",
+            d->hwnd, A32(1), g_cls[d->cls].name, d->id, d->text);
     d->dlg_ended = 1, d->dlg_result = A32(1);
     d->style &= ~WS_VISIBLE;
     RET(1, 2);
