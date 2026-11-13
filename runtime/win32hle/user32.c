@@ -496,7 +496,10 @@ static void destroy(uint32_t h) {
 static void set_focus(uint32_t h) {
     uint32_t old = g_focus;
     if (old == h) return;
+    int old_edit = old && W(old) && W(old)->kind == K_EDIT;
+    int new_edit = h && W(h) && W(h)->kind == K_EDIT;
     g_focus = h;
+    if (old_edit != new_edit && hle_text_input_hook) hle_text_input_hook(new_edit);
     if (old && W(old)) hle_send(old, WM_KILLFOCUS, h, 0);
     if (h && W(h)) hle_send(h, WM_SETFOCUS, old, 0);
 }
