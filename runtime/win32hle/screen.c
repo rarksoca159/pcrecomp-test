@@ -369,8 +369,16 @@ static void present(int flip) {
     }
     int ww, wh;
     SDL_GetRendererOutputSize(g_ren, &ww, &wh);
-if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
+#ifdef __ANDROID__
+    /* Fill the landscape display without distorting the game's aspect ratio.
+     * Overscan is centered and clipped by SDL, rather than leaving the game
+     * as a small centered picture with unused screen space. */
+    if ((long long)ww * h > (long long)wh * w) g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
+    else g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
+#else
+    if ((long long)ww * h > (long long)wh * w) g_dst.h = wh, g_dst.w = (int)((long long)wh * w / h);
     else g_dst.w = ww, g_dst.h = (int)((long long)ww * h / w);
+#endif
     if (g_mode == 4) {                                   /* integer: whole multiples of the game's size */
         int k = ww / w < wh / h ? ww / w : wh / h;
         if (k < 1) k = 1;
