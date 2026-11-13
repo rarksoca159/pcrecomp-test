@@ -846,9 +846,15 @@ static void confine_update(void) {
 #include <emscripten/threading.h>
 #endif
 #ifdef __ANDROID__
-/* One Android finger owns one native touch gesture. */
+/* One Android finger owns one native touch gesture. Keep the press/release
+ * deferred until after a newly rendered frame, matching the proven input
+ * ordering from the earlier Android implementation without synthesizing mouse
+ * messages or changing USER32 mouse-button state. */
 static SDL_FingerID g_android_touch_id;
 static int g_android_touch_active;
+static int g_android_touch_down_pending;
+static int g_android_touch_release_pending;
+static int g_android_touch_button_down;
 static int g_android_touch_x, g_android_touch_y;
 
 static int android_touch_position(float nx, float ny, int *gx, int *gy) {
@@ -898,13 +904,17 @@ void hle_screen_pump(void) {
                     me.button.x = (int)(e.tfinger.x * ww);
                     me.button.y = (int)(e.tfinger.y * wh);
                     menu_event(&me);
-                } else if (!g_android_touch_active &&
+                } else if (!g_android_touch_active && !g_android_touch_down_pending &&
+                           !g_android_touch_button_down && !g_android_touch_release_pending &&
                            android_touch_position(e.tfinger.x, e.tfinger.y, &gx, &gy)) {
                     g_android_touch_id = e.tfinger.fingerId;
                     g_android_touch_active = 1;
                     g_android_touch_x = gx, g_android_touch_y = gy;
+                    /* Move first. The game gets a render/update cycle before
+                     * the press is delivered from primary_changed(). */
                     hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
-                    hle_input_touch_sync(HLE_WM_TOUCHDOWN, gx, gy);
+                    g_android_touch_down_pending = 1;
+                    g_android_touch_release_pending = 0;
                 }
                 continue;
             }
@@ -936,7 +946,9 @@ void hle_screen_pump(void) {
                         g_android_touch_x = gx, g_android_touch_y = gy;
                         hle_input_touch_sync(HLE_WM_TOUCHMOVE, gx, gy);
                     }
-                    hle_input_touch_sync(HLE_WM_TOUCHUP, gx, gy);
+                    /* Even a very quick tap releases only after its deferred
+                     * touch-down has been delivered. */
+                    g_android_touch_release_pending = 1;
                     g_android_touch_active = 0;
                 }
                 continue;
@@ -1062,6 +1074,20 @@ static void primary_changed(void) {
     if (!flip && now - g_last_present < 15) return;
     if (now - last_events >= 100) SDL_PumpEvents(), last_events = now;
     present(flip);
+#ifdef __ANDROID__
+    /* Deliver the press only after the game has rendered a frame at the
+     * touched position. Release on a later presented frame, including taps
+     * where finger-up arrived before the first presentation. */
+    if (g_android_touch_down_pending) {
+        hle_input_touch_sync(HLE_WM_TOUCHDOWN, g_android_touch_x, g_android_touch_y);
+        g_android_touch_down_pending = 0;
+        g_android_touch_button_down = 1;
+    } else if (g_android_touch_release_pending && g_android_touch_button_down) {
+        hle_input_touch_sync(HLE_WM_TOUCHUP, g_android_touch_x, g_android_touch_y);
+        g_android_touch_release_pending = 0;
+        g_android_touch_button_down = 0;
+    }
+#endif
 }
 
 int hle_screen_open(const char *title, int fullscreen, int headless) {
