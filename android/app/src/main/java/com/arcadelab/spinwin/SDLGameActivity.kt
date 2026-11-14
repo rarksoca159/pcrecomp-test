@@ -3,10 +3,21 @@ package com.arcadelab.spinwin
 import org.libsdl.app.SDLActivity
 import android.content.pm.ActivityInfo
 import android.util.Log
+import android.os.Bundle
 import java.io.File
 
 /** Runs SpinWin.exe through the reconstructed Win32 HLE runtime. */
 class SDLGameActivity : SDLActivity() {
+
+    private external fun nativeConfigureFileTrace(path: String)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val logFile = File(getExternalFilesDir(null), "spinwin-filetrace.log")
+        logFile.parentFile?.mkdirs()
+        nativeConfigureFileTrace(logFile.absolutePath)
+        Log.i("SpinWin", "File trace log: " + logFile.absolutePath)
+    }
 
     private var startupKeyboardRequested = false
 
