@@ -207,8 +207,18 @@ static uint32_t call_proc(uint32_t proc, uint32_t h, uint32_t m, uint32_t w, uin
     win_t *x = g_msgtrace ? W(h) : NULL;
     if (x && m != WM_MOUSEMOVE && m != HLE_WM_TOUCHMOVE && m != 0x0084u && m != 0x0020u)
         fprintf(stderr, "[msg] %05X %s#%u <- %04X %08X %08X\n", h, g_cls[x->cls].name, x->id, m, w, l);
+#ifdef __ANDROID__
+    if (x && (m == WM_CHAR || m == WM_KEYDOWN || m == WM_SYSKEYDOWN))
+        fprintf(stderr, "[keyboard] PROC hwnd=%08x class=%s kind=%d proc=%08x msg=%04x wParam=%08x text='%s'\n",
+                h, g_cls[x->cls].name, x->kind, proc, m, w, x->text);
+#endif
     uint32_t a[4] = { h, m, w, l };
     uint32_t r = hle_call_guest(proc, 4, a);
+#ifdef __ANDROID__
+    if (x && (m == WM_CHAR || m == WM_KEYDOWN || m == WM_SYSKEYDOWN))
+        fprintf(stderr, "[keyboard] PROC_RETURN hwnd=%08x msg=%04x result=%08x text='%s'\n",
+                h, m, r, x->text);
+#endif
     if (x && m != WM_MOUSEMOVE && m != 0x0084u && m != 0x0020u && r) fprintf(stderr, "[msg] %05X     -> %08X\n", h, r);
     return r;
 }
