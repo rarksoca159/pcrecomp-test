@@ -1034,7 +1034,16 @@ void hle_screen_pump(void) {
             break;
         }
         case SDL_TEXTINPUT:
+#ifdef __ANDROID__
+            /* Android's launcher may show the IME for the game's custom
+             * GetKeyboardState/ToAscii name-entry routine without SDL's
+             * standard edit-control text-input mode being active. The IME
+             * still delivers committed SDL_TEXTINPUT events; do not discard
+             * them merely because SDL_IsTextInputActive() is false. */
+            hle_input_text(e.text.text);
+#else
             if (SDL_IsTextInputActive()) hle_input_text(e.text.text);
+#endif
             break;
         case SDL_KEYDOWN: case SDL_KEYUP: {
             /* While an edit control owns text input, SDL_TEXTINPUT carries
