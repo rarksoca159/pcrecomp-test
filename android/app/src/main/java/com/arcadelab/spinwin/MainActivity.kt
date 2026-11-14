@@ -17,7 +17,9 @@ import java.io.FileOutputStream
 class MainActivity : ComponentActivity() {
     private lateinit var status: TextView
     private lateinit var playButton: Button
+    private lateinit var exportSaveButton: Button
     private val gameDir by lazy { File(filesDir, "spinwin") }
+    private val saveFile by lazy { File(gameDir, "settings.bin") }
 
     private external fun nativeEngineStatus(): String
 
@@ -41,11 +43,49 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val importSavePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                if (!gameDir.exists() && !gameDir.mkdirs()) error("Cannot create game folder")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(saveFile).use { output -> input.copyTo(output) }
+                } ?: error("Cannot read selected save file")
+                status.text = "Save file imported as settings.bin. You can now play."
+                refreshSaveButton()
+            } catch (e: Exception) {
+                status.text = "Save import failed: ${e.message ?: "unknown error"}"
+            }
+        }
+    }
+
+    private val exportSavePicker = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                if (!saveFile.isFile) error("settings.bin was not found. Play the game and return here first.")
+                contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                    saveFile.inputStream().use { input -> input.copyTo(output) }
+                } ?: error("Cannot write selected destination")
+                status.text = "settings.bin exported. Keep this file before uninstalling the app."
+            } catch (e: Exception) {
+                status.text = "Save export failed: ${e.message ?: "unknown error"}"
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         System.loadLibrary("spinwin_android")
         buildScreen()
         refreshStatus()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::status.isInitialized && ::playButton.isInitialized) refreshStatus()
+    }
+
+    private fun refreshSaveButton() {
+        if (::exportSaveButton.isInitialized) exportSaveButton.isEnabled = saveFile.isFile
     }
 
     private fun buildScreen() {
@@ -68,6 +108,19 @@ class MainActivity : ComponentActivity() {
             text = "SELECT GAME FOLDER"
             setOnClickListener { folderPicker.launch(null) }
         })
+        layout.addView(Button(this).apply {
+            text = "IMPORT SAVE FILE (settings.bin)"
+            setOnClickListener { importSavePicker.launch(arrayOf("*/*")) }
+        })
+        exportSaveButton = Button(this).apply {
+            text = "EXPORT SAVE FILE (settings.bin)"
+            isEnabled = saveFile.isFile
+            setOnClickListener {
+                if (saveFile.isFile) exportSavePicker.launch("settings.bin")
+                else Toast.makeText(this@MainActivity, "Play the game and return here first.", Toast.LENGTH_LONG).show()
+            }
+        }
+        layout.addView(exportSaveButton)
         layout.addView(Button(this).apply {
             text = "TEST SDL2 GRAPHICS + TOUCH"
             setOnClickListener {
@@ -94,6 +147,7 @@ class MainActivity : ComponentActivity() {
         val valid = File(gameDir, "SpinWin.exe").exists() &&
             File(gameDir, "Graphics").isDirectory && File(gameDir, "Audio").isDirectory
         playButton.isEnabled = valid
+        refreshSaveButton()
         status.text = if (valid)
             "$runtime\nGame files are ready. Tap PLAY SPIN & WIN."
         else "$runtime\nChoose the extracted 'Spin & Win' game folder to import its files."
