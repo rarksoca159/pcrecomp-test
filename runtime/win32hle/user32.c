@@ -169,9 +169,8 @@ static int text_char_vk(unsigned char c, int *shift) {
     if (c >= 'A' && c <= 'Z') { *shift = 1; return c; }
     if (c >= '0' && c <= '9') return c;
     if (c == ' ') return 0x20;
-    switch (c) {
-    case '!': *shift=1; return '1'; case '@': *shift=1; return '2';
-    case '#': *shift=1; return '3'; case '
+    return 0;
+}
 static void (*g_pump)(void);
 
 void hle_set_pump_hook(void (*fn)(void)) { g_pump = fn; }
