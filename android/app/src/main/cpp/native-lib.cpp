@@ -54,6 +54,12 @@ extern "C" int SDL_main(int argc, char** argv) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 12;
     }
+#ifdef __ANDROID__
+    /* The Android IME may be visible while SDL's text-input connection is
+     * inactive. Start it so committed characters arrive as SDL_TEXTINPUT. */
+    SDL_StartTextInput();
+    SDL_Log("Android SDL text input started");
+#endif
     recomp_host_init();
     if (hle_screen_open("Spin & Win", 1, 0) != 0) {
         SDL_Log("Could not open the game display");
