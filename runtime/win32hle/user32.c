@@ -510,6 +510,11 @@ static void uncover(win_t *x) {
 static void destroy(uint32_t h) {
     win_t *x = W(h);
     if (!x || x->destroying) return;
+#ifdef __ANDROID__
+    if (h == 0x00010010u)
+        fprintf(stderr, "[keyboard] WINDOW_DESTROY hwnd=%08x class=%s kind=%d proc=%08x focus=%08x\\n",
+                h, g_cls[x->cls].name, x->kind, x->proc, g_focus);
+#endif
     x->destroying = 1;
     uncover(x);
     for (int i = 0; i < MAX_WIN; i++)                    /* owned windows and children first */
@@ -727,6 +732,11 @@ static void u_DispatchMessageA(void) {
         RET(hle_call_guest(MEM32(lp + 12), 4, a), 1);
     }
     win_t *x = W(h);
+#ifdef __ANDROID__
+    if (!x && (m == WM_CHAR || m == WM_KEYDOWN || m == WM_SYSKEYDOWN))
+        fprintf(stderr, "[keyboard] DISPATCH_DROP hwnd=%08x msg=%04x wParam=%08x focus=%08x queue=%u pending=%d\\n",
+                h, m, MEM32(lp + 8), hle_focus_window(), g_text_count, g_text_pending);
+#endif
     if (!x) RET(0, 1);
     uint32_t r = call_proc(x->proc, h, m, MEM32(lp + 8), MEM32(lp + 12));
     if (m == WM_PAINT && (x = W(h)) && x->inval && x->kind != K_GUEST) x->inval = 0;
