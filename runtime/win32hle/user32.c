@@ -888,6 +888,9 @@ void hle_input_text(const char *utf8) {
     uint32_t target = hle_focus_window();
     win_t *x = W(target);
     if (!utf8) return;
+    fprintf(stderr, "[keyboard] HLE_TEXT received='%s' focus=%08x queue_before=%u pending=%d\\n",
+            utf8, target, g_text_count, g_text_pending);
+    fflush(stderr);
     /* Preserve WM_CHAR for standard controls when a window has focus. The
      * custom game name-entry routine polls GetKeyboardState/ToAsciiEx directly,
      * so its committed characters must also be queued even without a focused
@@ -899,8 +902,13 @@ void hle_input_text(const char *utf8) {
             unsigned tail = (g_text_head + g_text_count) % HLE_TEXT_QUEUE;
             g_text_queue[tail] = *p;
             g_text_count++;
+            fprintf(stderr, "[keyboard] queued char=0x%02x '%c' queue_now=%u\\n",
+                    *p, *p >= 32 && *p < 127 ? *p : '?', g_text_count);
+            fflush(stderr);
         }
     }
+    fprintf(stderr, "[keyboard] HLE_TEXT finished queue_after=%u\\n", g_text_count);
+    fflush(stderr);
 }
 void hle_input_cursor(int sx, int sy) { g_cursor_x = sx, g_cursor_y = sy; }
 /* A mouse that reports movement, not a place (the host's relative mode):
@@ -2099,6 +2107,9 @@ static void u_GetKeyboardState(void) {
             g_text_pending_char = c;
             state[vk] |= 0x80;
             if (shift) state[VK_SHIFT] |= 0x80;
+            fprintf(stderr, "[keyboard] GetKeyboardState exposes char='%c' vk=0x%02x shift=%d queue=%u\\n",
+                    c, vk, shift, g_text_count);
+            fflush(stderr);
         } else {
             g_text_head = (g_text_head + 1) % HLE_TEXT_QUEUE;
             g_text_count--;
@@ -2201,8 +2212,16 @@ static void u_ToAscii(void) {                            /* (vk, scan, keystate,
 }
 static void u_ToAsciiEx(void) {                           /* same conversion; final HKL is ignored */
     const uint8_t *ks = (const uint8_t *)APTR(2);
-    int c = text_pending_ascii(A32(0));
-    if (!c) c = vk_char(A32(0), ks && (ks[VK_SHIFT] & 0x80));
+    uint32_t vk = A32(0);
+    int had_pending = g_text_pending;
+    int pending_vk = g_text_pending_vk;
+    int c = text_pending_ascii(vk);
+    if (!c) c = vk_char(vk, ks && (ks[VK_SHIFT] & 0x80));
+    if (had_pending || c) {
+        fprintf(stderr, "[keyboard] ToAsciiEx vk=0x%02x pending=%d pending_vk=0x%02x result=%d ('%c') queue=%u\\n",
+                vk, had_pending, pending_vk, c, c >= 32 && c < 127 ? c : '?', g_text_count);
+        fflush(stderr);
+    }
     if (!c || !A32(3)) RET(0, 6);
     MEM16(A32(3)) = (uint16_t)c;
     RET(1, 6);
