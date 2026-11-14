@@ -887,12 +887,14 @@ void hle_text_input_set_active(int on) {
 void hle_input_text(const char *utf8) {
     uint32_t target = hle_focus_window();
     win_t *x = W(target);
-    if (!utf8 || !x) return;
-    /* Preserve WM_CHAR for standard controls, and also queue each printable
-     * ASCII character for the game's GetKeyboardState/ToAsciiEx polling path. */
+    if (!utf8) return;
+    /* Preserve WM_CHAR for standard controls when a window has focus. The
+     * custom game name-entry routine polls GetKeyboardState/ToAsciiEx directly,
+     * so its committed characters must also be queued even without a focused
+     * USER32 window. */
     for (const unsigned char *p = (const unsigned char *)utf8; *p; p++) {
         if (*p < 0x20 || *p >= 0x7F) continue;
-        q_push(target, WM_CHAR, *p, 0);
+        if (x) q_push(target, WM_CHAR, *p, 0);
         if (text_char_vk(*p, &(int){0}) && g_text_count < HLE_TEXT_QUEUE) {
             unsigned tail = (g_text_head + g_text_count) % HLE_TEXT_QUEUE;
             g_text_queue[tail] = *p;
