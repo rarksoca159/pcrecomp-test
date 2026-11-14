@@ -263,6 +263,11 @@ static void q_push_to(uint32_t h, uint32_t m, uint32_t w, uint32_t l, uint32_t t
     g_q[g_qn++] = x;
 }
 static void q_push(uint32_t h, uint32_t m, uint32_t w, uint32_t l) {
+#ifdef __ANDROID__
+    if (m == WM_CHAR || m == WM_KEYDOWN || m == WM_SYSKEYDOWN)
+        fprintf(stderr, "[keyboard] QUEUE hwnd=%08x msg=%04x wParam=%08x lParam=%08x focus=%08x\\n",
+                h, m, w, l, hle_focus_window());
+#endif
     win_t *x = W(h == 0xFFFFu ? hle_first_hwnd() : h);   /* HWND_BROADCAST: the top-level windows, the game's */
     q_push_to(h, m, w, l, x ? x->thread : 0);
 }
@@ -546,6 +551,11 @@ static int next_message(msg_t *out, uint32_t hwnd, uint32_t lo, uint32_t hi, int
     while (g_qn && g_q[0].message == 0xFFFFFFFFu) memmove(g_q, g_q + 1, sizeof g_q[0] * (size_t)--g_qn);
     for (int i = 0; i < g_qn; i++)
         if (matches(&g_q[i], hwnd, lo, hi)) {
+#ifdef __ANDROID__
+            if (g_q[i].message == WM_CHAR || g_q[i].message == WM_KEYDOWN || g_q[i].message == WM_SYSKEYDOWN)
+                fprintf(stderr, "[keyboard] DEQUEUE hwnd=%08x msg=%04x wParam=%08x filter=%08x thread=%u current=%u\\n",
+                        g_q[i].hwnd, g_q[i].message, g_q[i].wParam, hwnd, g_q[i].thread, hle_thread_id());
+#endif
             *out = g_q[i];
             if (remove) memmove(g_q + i, g_q + i + 1, sizeof g_q[0] * (size_t)(--g_qn - i));
             return 1;
@@ -697,6 +707,11 @@ static void u_TranslateMessage(void) {
 }
 static void u_DispatchMessageA(void) {
     uint32_t lp = A32(0), h = MEM32(lp), m = MEM32(lp + 4);
+#ifdef __ANDROID__
+    if (m == WM_CHAR || m == WM_KEYDOWN || m == WM_SYSKEYDOWN)
+        fprintf(stderr, "[keyboard] DISPATCH hwnd=%08x msg=%04x wParam=%08x focus=%08x\\n",
+                h, m, MEM32(lp + 8), hle_focus_window());
+#endif
     if (m == WM_TIMER && MEM32(lp + 12)) {               /* a TIMERPROC */
         uint32_t a[4] = { h, WM_TIMER, MEM32(lp + 8), hle_ticks_ms() };
         RET(hle_call_guest(MEM32(lp + 12), 4, a), 1);
@@ -2086,16 +2101,31 @@ static void u_KillTimer(void) {
 /* the keyboard and the mouse */
 volatile int hle_lbutton_reads;                 /* how often the game has looked at the left button */
 static void u_GetKeyState(void) {
-    uint8_t k = g_keys[A32(0) & 0xFF];
-    if ((A32(0) & 0xFF) == 1) hle_lbutton_reads++;
+    uint32_t vk = A32(0) & 0xFF;
+    uint8_t k = g_keys[vk];
+#ifdef __ANDROID__
+    if (g_text_count && ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')))
+        fprintf(stderr, "[keyboard] GetKeyState vk=%02x state=%02x queued=%u\\n", vk, k, g_text_count);
+#endif
+    if (vk == 1) hle_lbutton_reads++;
     RET((k & 0x80 ? 0xFF80u : 0u) | (k & 1u), 1);
 }
 static void u_GetAsyncKeyState(void) {
-    if ((A32(0) & 0xFF) == 1) hle_lbutton_reads++;
-    RET(g_keys[A32(0) & 0xFF] & 0x80 ? 0x8000u : 0u, 1);
+    uint32_t vk = A32(0) & 0xFF;
+#ifdef __ANDROID__
+    if (g_text_count && ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')))
+        fprintf(stderr, "[keyboard] GetAsyncKeyState vk=%02x state=%02x queued=%u\\n", vk, g_keys[vk], g_text_count);
+#endif
+    if (vk == 1) hle_lbutton_reads++;
+    RET(g_keys[vk] & 0x80 ? 0x8000u : 0u, 1);
 }
 static void u_GetKeyboardState(void) {
     uint8_t *state = (uint8_t *)APTR(0);
+#ifdef __ANDROID__
+    if (g_text_count || g_text_pending)
+        fprintf(stderr, "[keyboard] GetKeyboardState called queued=%u pending=%d ptr=%p\\n",
+                g_text_count, g_text_pending, (void *)state);
+#endif
     memcpy(state, g_keys, 256);
     if (state && !g_text_pending && g_text_count) {
         int shift = 0;
