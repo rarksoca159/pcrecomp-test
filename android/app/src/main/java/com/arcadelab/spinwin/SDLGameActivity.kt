@@ -13,7 +13,8 @@ class SDLGameActivity : SDLActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val logFile = File(getExternalFilesDir(null), "spinwin-filetrace.log")
+        val logDir = getExternalFilesDir(null) ?: filesDir
+        val logFile = File(logDir, "spinwin-filetrace.log")
         logFile.parentFile?.mkdirs()
         nativeConfigureFileTrace(logFile.absolutePath)
         Log.i("SpinWin", "File trace log: " + logFile.absolutePath)
