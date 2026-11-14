@@ -20,6 +20,21 @@ Java_com_arcadelab_spinwin_MainActivity_nativeEngineStatus(JNIEnv* env, jobject)
     return env->NewStringUTF(message);
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_arcadelab_spinwin_SDLGameActivity_nativeConfigureFileTrace(JNIEnv* env, jobject, jstring logPath) {
+    if (logPath == nullptr) return;
+    const char* path = env->GetStringUTFChars(logPath, nullptr);
+    if (path == nullptr) return;
+    setenv("HLE_FILETRACE", "1", 1);
+    if (freopen(path, "a", stderr) == nullptr) {
+        __android_log_print(ANDROID_LOG_ERROR, "SpinWin", "Cannot open file trace log: %s", path);
+    } else {
+        fprintf(stderr, "[filetrace] Logging enabled: %s\\n", path);
+        fflush(stderr);
+    }
+    env->ReleaseStringUTFChars(logPath, path);
+}
+
 /* SDLActivity supplies the imported game directory as argv[1]. */
 extern "C" int SDL_main(int argc, char** argv) {
     if (argc < 2 || !argv || !argv[1] || !argv[1][0]) {
