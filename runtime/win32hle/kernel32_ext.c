@@ -141,7 +141,7 @@ static void k_CreateFileA(void) {
     }
     int fd = open(path, fl | O_CLOEXEC, 0644);
     if (hle_filetrace())
-        fprintf(stderr, "[file] CreateFileA \"%s\" -> %s %s\n", name, path, fd >= 0 ? "ok" : strerror(errno));
+        fprintf(stderr, "[file] CreateFileA \"%s\" access=0x%08X disposition=%u -> %s %s\n", name, access, disp, path, fd >= 0 ? "ok" : strerror(errno));
     if (fd < 0) { hle_set_last_error(errno_to_win(errno)); RET(INVALID_HANDLE, 7); }
     if ((fl & O_CREAT) && !exists) hle_path_changed();
     hle_set_last_error(exists && (disp == 2 || disp == 4) ? ERROR_ALREADY_EXISTS : 0);
@@ -161,6 +161,7 @@ static void k_ReadFile(void) {                           /* (h,buf,n,&read,ovl) 
         got += (uint32_t)r;
     }
     if (pr) *pr = got;
+    if (hle_filetrace()) fprintf(stderr, "[file] ReadFile handle=0x%08X bytes=%u\n", A32(0), got);
     RET(1, 5);                                           /* EOF is success with 0 read */
 }
 static void k_WriteFile(void) {                          /* (h,buf,n,&written,ovl) */
@@ -176,6 +177,7 @@ static void k_WriteFile(void) {                          /* (h,buf,n,&written,ov
         put += (uint32_t)r;
     }
     if (pw) *pw = put;
+    if (hle_filetrace()) fprintf(stderr, "[file] WriteFile handle=0x%08X bytes=%u\n", A32(0), put);
     RET(put == n ? 1u : 0u, 5);
 }
 static void k_SetFilePointer(void) {                     /* (h,dist,&distHigh,method) -> new pos */
