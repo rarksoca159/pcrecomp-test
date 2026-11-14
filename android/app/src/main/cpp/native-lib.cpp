@@ -27,7 +27,7 @@ Java_com_arcadelab_spinwin_SDLGameActivity_nativeConfigureFileTrace(JNIEnv* env,
     if (path == nullptr) return;
     setenv("HLE_FILETRACE", "1", 1);
     if (freopen(path, "a", stderr) == nullptr) {
-        __android_log_print(ANDROID_LOG_ERROR, "SpinWin", "Cannot open file trace log: %s", path);
+        fprintf(stderr, "[filetrace] Cannot open log file: %s\\n", path);
     } else {
         fprintf(stderr, "[filetrace] Logging enabled: %s\\n", path);
         fflush(stderr);
