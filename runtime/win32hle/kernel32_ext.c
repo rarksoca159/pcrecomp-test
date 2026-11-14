@@ -54,7 +54,7 @@ static uint32_t errno_to_win(int e) {
 }
 
 /* ---- file objects ---- */
-typedef struct { int fd; } hfile;
+typedef struct { int fd; char path[1024]; } hfile;
 static void file_closer(void *o) { hfile *f = (hfile *)o; if (f->fd > 2) close(f->fd); free(f); }
 
 /* The standard handles (kernel32_crt.c's GetStdHandle) are 0x11..0x13. */
@@ -68,11 +68,12 @@ static int fd_of(uint32_t h) {
 
 int hle_file_fd(uint32_t h) { return fd_of(h); }   /* a file HANDLE's descriptor, for a host (Bink reads the game's) */
 
-static uint32_t new_file(int fd) {
+static uint32_t new_file(int fd, const char *path) {
     static int closer_set;
     if (!closer_set) hle_handle_set_closer(HLE_H_FILE, file_closer), closer_set = 1;
     hfile *f = (hfile *)malloc(sizeof *f);
     f->fd = fd;
+    snprintf(f->path, sizeof f->path, "%s", path ? path : "(unknown)");
     uint32_t h = hle_handle_alloc(HLE_H_FILE, f);
     if (!h) { close(fd); free(f); return INVALID_HANDLE; }
     return h;
@@ -106,6 +107,11 @@ int hle_filetrace(void) {
 /* CreateFileA(name,access,share,sa,disp,flags,template). access GENERIC_READ
  * 0x80000000, GENERIC_WRITE 0x40000000; disp CREATE_NEW 1, CREATE_ALWAYS 2,
  * OPEN_EXISTING 3, OPEN_ALWAYS 4, TRUNCATE_EXISTING 5. */
+static const char *file_path_for_handle(uint32_t h) {
+    hfile *f = (hfile *)hle_handle_obj(h, HLE_H_FILE);
+    return f ? f->path : "(unknown)";
+}
+
 static void k_CreateFileA(void) {
     const char *name = ASTR(0);
     uint32_t access = A32(1), disp = A32(4);
@@ -145,7 +151,7 @@ static void k_CreateFileA(void) {
     if (fd < 0) { hle_set_last_error(errno_to_win(errno)); RET(INVALID_HANDLE, 7); }
     if ((fl & O_CREAT) && !exists) hle_path_changed();
     hle_set_last_error(exists && (disp == 2 || disp == 4) ? ERROR_ALREADY_EXISTS : 0);
-    RET(new_file(fd), 7);
+    RET(new_file(fd, path), 7);
 }
 
 static void k_ReadFile(void) {                           /* (h,buf,n,&read,ovl) */
@@ -161,7 +167,7 @@ static void k_ReadFile(void) {                           /* (h,buf,n,&read,ovl) 
         got += (uint32_t)r;
     }
     if (pr) *pr = got;
-    if (hle_filetrace()) fprintf(stderr, "[file] ReadFile handle=0x%08X bytes=%u\n", A32(0), got);
+    if (hle_filetrace()) fprintf(stderr, "[file] ReadFile \"%s\" handle=0x%08X bytes=%u\n", file_path_for_handle(A32(0)), A32(0), got);
     RET(1, 5);                                           /* EOF is success with 0 read */
 }
 static void k_WriteFile(void) {                          /* (h,buf,n,&written,ovl) */
@@ -177,7 +183,7 @@ static void k_WriteFile(void) {                          /* (h,buf,n,&written,ov
         put += (uint32_t)r;
     }
     if (pw) *pw = put;
-    if (hle_filetrace()) fprintf(stderr, "[file] WriteFile handle=0x%08X bytes=%u\n", A32(0), put);
+    if (hle_filetrace()) fprintf(stderr, "[file] WriteFile \"%s\" handle=0x%08X bytes=%u\n", file_path_for_handle(A32(0)), A32(0), put);
     RET(put == n ? 1u : 0u, 5);
 }
 static void k_SetFilePointer(void) {                     /* (h,dist,&distHigh,method) -> new pos */
@@ -689,7 +695,7 @@ static uint32_t lopen_common(const char *name, int fl, int create) {
     if (create && fd >= 0) hle_path_changed();
     if (hle_filetrace()) fprintf(stderr, "[file] _lopen \"%s\" -> %s %s\n", name, path, fd >= 0 ? "ok" : strerror(errno));
     if (fd < 0) { hle_set_last_error(errno_to_win(errno)); return INVALID_HANDLE; }
-    return new_file(fd);
+    return new_file(fd, path);
 }
 static void k__lopen(void) {                             /* (path, mode) OF_READ 0 / OF_WRITE 1 / OF_READWRITE 2 */
     uint32_t m = A32(1);
@@ -699,11 +705,13 @@ static void k__lcreat(void) { RET(lopen_common(ASTR(0), O_RDWR, 1), 2); }   /* (
 static void k__lread(void) {
     int fd = fd_of(A32(0)); if (fd < 0) RET(INVALID_HANDLE, 3);
     ssize_t r = read(fd, APTR(1), A32(2));
+    if (hle_filetrace()) fprintf(stderr, "[file] _lread \"%s\" handle=0x%08X bytes=%zd\n", file_path_for_handle(A32(0)), A32(0), r > 0 ? r : 0);
     RET(r < 0 ? INVALID_HANDLE : (uint32_t)r, 3);
 }
 static void k__lwrite(void) {
     int fd = fd_of(A32(0)); if (fd < 0) RET(INVALID_HANDLE, 3);
     ssize_t w = write(fd, APTR(1), A32(2));
+    if (hle_filetrace()) fprintf(stderr, "[file] _lwrite \"%s\" handle=0x%08X bytes=%zd\n", file_path_for_handle(A32(0)), A32(0), w > 0 ? w : 0);
     RET(w < 0 ? INVALID_HANDLE : (uint32_t)w, 3);
 }
 static void k__lclose(void) { hle_handle_close(A32(0)); RET(0, 1); }
