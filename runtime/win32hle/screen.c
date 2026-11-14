@@ -1035,6 +1035,10 @@ void hle_screen_pump(void) {
         }
         case SDL_TEXTINPUT:
 #ifdef __ANDROID__
+            /* Trace the Android IME event before forwarding it to USER32. */
+            fprintf(stderr, "[keyboard] SDL_TEXTINPUT text='%s' active=%d focus=%08x\\n",
+                    e.text.text, SDL_IsTextInputActive(), hle_focus_window());
+            fflush(stderr);
             /* Android's launcher may show the IME for the game's custom
              * GetKeyboardState/ToAscii name-entry routine without SDL's
              * standard edit-control text-input mode being active. The IME
@@ -1046,6 +1050,12 @@ void hle_screen_pump(void) {
 #endif
             break;
         case SDL_KEYDOWN: case SDL_KEYUP: {
+#ifdef __ANDROID__
+            fprintf(stderr, "[keyboard] SDL_KEY%s sym=%d scancode=%d repeat=%d\\n",
+                    e.type == SDL_KEYDOWN ? "DOWN" : "UP",
+                    e.key.keysym.sym, e.key.keysym.scancode, e.key.repeat);
+            fflush(stderr);
+#endif
             /* While an edit control owns text input, SDL_TEXTINPUT carries
              * the committed character (including its actual case). Do not
              * also turn printable key events into duplicate WM_CHARs. */
