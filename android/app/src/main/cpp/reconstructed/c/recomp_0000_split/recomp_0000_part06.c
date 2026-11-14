@@ -8,6 +8,9 @@
 #include <math.h>
 #include <string.h>
 
+/* Notify the Android host when Spin & Win enters/leaves its custom text field. */
+extern void hle_text_input_set_active(int on);
+
 void sub_0040E5E0(void) {
     int _fpu_cmp = 0;
     uint32_t _cf = 0;  /* carry flag */
