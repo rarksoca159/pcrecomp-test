@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <SDL.h>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <unistd.h>
 extern "C" {
@@ -26,6 +27,8 @@ extern "C" int SDL_main(int argc, char** argv) {
         return 10;
     }
     const std::string gameDir(argv[1]);
+    /* Log original game file opens so save-file paths can be identified. */
+    setenv("HLE_FILETRACE", "1", 1);
     if (chdir(gameDir.c_str()) != 0) {
         SDL_Log("Spin & Win: cannot open game folder %s", gameDir.c_str());
         return 11;
