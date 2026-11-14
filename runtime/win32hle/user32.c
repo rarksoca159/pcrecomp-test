@@ -858,6 +858,13 @@ void hle_input_key(int down, uint32_t vk, uint32_t scan) {
     if (t) q_push(t, alt || vk == VK_MENU || vk == 0x79 ? (down ? WM_SYSKEYDOWN : WM_SYSKEYUP) : (down ? WM_KEYDOWN : WM_KEYUP), vk, l);
     if (hle_input_hook) hle_input_hook();
 }
+void hle_text_input_set_active(int on) {
+    static int active = -1;
+    on = !!on;
+    if (active == on) return;
+    active = on;
+    if (hle_text_input_hook) hle_text_input_hook(on);
+}
 void hle_input_text(const char *utf8) {
     uint32_t target = hle_focus_window();
     win_t *x = W(target);
