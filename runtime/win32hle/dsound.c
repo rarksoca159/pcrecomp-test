@@ -75,6 +75,147 @@ static inline float sample(const dsbuf *b, uint32_t frame, int ch) {
 static int audio_open(void);
 static int audio_open_once(void) { return audio_open(); }
 
+/* FMOD 3.x samples/channels share this SDL2 mixer with DirectSound. */
+#define MAX_FMOD_SAMPLES 128
+#define MAX_FMOD_CHANNELS 64
+typedef struct {
+    const int16_t *pcm;
+    uint32_t frames;
+    int channels, rate, loop, used;
+} fmod_mix_sample;
+typedef struct {
+    int sample, used, paused, volume, pan, frequency;
+    double pos;
+} fmod_mix_channel;
+static fmod_mix_sample g_fmod_samples[MAX_FMOD_SAMPLES];
+static fmod_mix_channel g_fmod_channels[MAX_FMOD_CHANNELS];
+static int g_fmod_max_channels = MAX_FMOD_CHANNELS;
+static float g_fmod_master = 1.0f;
+
+int hle_audio_fmod_init(int rate, int max_channels) {
+    (void)rate; /* The shared device runs at OUT_RATE and resamples per channel. */
+    if (!audio_open_once()) return 0;
+    if (max_channels < 1) max_channels = MAX_FMOD_CHANNELS;
+    if (max_channels > MAX_FMOD_CHANNELS) max_channels = MAX_FMOD_CHANNELS;
+    pthread_mutex_lock(&g_mix);
+    g_fmod_max_channels = max_channels;
+    pthread_mutex_unlock(&g_mix);
+    return 1;
+}
+int hle_audio_fmod_sample_create(const int16_t *pcm, uint32_t frames,
+                                 int channels, int rate, int loop) {
+    if (!pcm || !frames || (channels != 1 && channels != 2) || rate <= 0 || !audio_open_once())
+        return -1;
+    pthread_mutex_lock(&g_mix);
+    int id = -1;
+    for (int i = 0; i < MAX_FMOD_SAMPLES; i++) {
+        if (!g_fmod_samples[i].used) { id = i; break; }
+    }
+    if (id >= 0) {
+        g_fmod_samples[id].pcm = pcm;
+        g_fmod_samples[id].frames = frames;
+        g_fmod_samples[id].channels = channels;
+        g_fmod_samples[id].rate = rate;
+        g_fmod_samples[id].loop = loop != 0;
+        g_fmod_samples[id].used = 1;
+    }
+    pthread_mutex_unlock(&g_mix);
+    return id;
+}
+void hle_audio_fmod_sample_free(int id) {
+    if (id < 0 || id >= MAX_FMOD_SAMPLES) return;
+    pthread_mutex_lock(&g_mix);
+    for (int i = 0; i < MAX_FMOD_CHANNELS; i++)
+        if (g_fmod_channels[i].used && g_fmod_channels[i].sample == id)
+            memset(&g_fmod_channels[i], 0, sizeof g_fmod_channels[i]);
+    memset(&g_fmod_samples[id], 0, sizeof g_fmod_samples[id]);
+    pthread_mutex_unlock(&g_mix);
+}
+int hle_audio_fmod_play(int sample_id, int requested_channel, int paused) {
+    if (sample_id < 0 || sample_id >= MAX_FMOD_SAMPLES) return -1;
+    pthread_mutex_lock(&g_mix);
+    if (!g_fmod_samples[sample_id].used) {
+        pthread_mutex_unlock(&g_mix);
+        return -1;
+    }
+    int channel = requested_channel;
+    if (channel < 0) {
+        channel = -1;
+        for (int i = 0; i < g_fmod_max_channels; i++)
+            if (!g_fmod_channels[i].used) { channel = i; break; }
+    }
+    if (channel < 0 || channel >= g_fmod_max_channels) {
+        pthread_mutex_unlock(&g_mix);
+        return -1;
+    }
+    fmod_mix_channel *c = &g_fmod_channels[channel];
+    c->sample = sample_id;
+    c->used = 1;
+    c->paused = paused != 0;
+    c->volume = 255;
+    c->pan = 128;
+    c->frequency = g_fmod_samples[sample_id].rate;
+    c->pos = 0.0;
+    pthread_mutex_unlock(&g_mix);
+    return channel;
+}
+void hle_audio_fmod_set_paused(int channel, int paused) {
+    pthread_mutex_lock(&g_mix);
+    for (int i = 0; i < g_fmod_max_channels; i++)
+        if (g_fmod_channels[i].used && (channel < 0 || channel == i))
+            g_fmod_channels[i].paused = paused != 0;
+    pthread_mutex_unlock(&g_mix);
+}
+void hle_audio_fmod_set_pan(int channel, int pan) {
+    if (pan < 0) pan = 0;
+    if (pan > 255) pan = 255;
+    pthread_mutex_lock(&g_mix);
+    for (int i = 0; i < g_fmod_max_channels; i++)
+        if (g_fmod_channels[i].used && (channel < 0 || channel == i))
+            g_fmod_channels[i].pan = pan;
+    pthread_mutex_unlock(&g_mix);
+}
+void hle_audio_fmod_set_volume(int channel, int volume) {
+    if (volume < 0) volume = 0;
+    if (volume > 255) volume = 255;
+    pthread_mutex_lock(&g_mix);
+    for (int i = 0; i < g_fmod_max_channels; i++)
+        if (g_fmod_channels[i].used && (channel < 0 || channel == i))
+            g_fmod_channels[i].volume = volume;
+    pthread_mutex_unlock(&g_mix);
+}
+void hle_audio_fmod_set_frequency(int channel, int frequency) {
+    pthread_mutex_lock(&g_mix);
+    for (int i = 0; i < g_fmod_max_channels; i++)
+        if (g_fmod_channels[i].used && (channel < 0 || channel == i))
+            g_fmod_channels[i].frequency = frequency;
+    pthread_mutex_unlock(&g_mix);
+}
+int hle_audio_fmod_stop(int channel) {
+    int stopped = 0;
+    pthread_mutex_lock(&g_mix);
+    for (int i = 0; i < g_fmod_max_channels; i++) {
+        if (g_fmod_channels[i].used && (channel < 0 || channel == i)) {
+            memset(&g_fmod_channels[i], 0, sizeof g_fmod_channels[i]);
+            stopped++;
+        }
+    }
+    pthread_mutex_unlock(&g_mix);
+    return stopped != 0;
+}
+void hle_audio_fmod_set_master(int volume) {
+    if (volume < 0) volume = 0;
+    if (volume > 255) volume = 255;
+    pthread_mutex_lock(&g_mix);
+    g_fmod_master = (float)volume / 255.0f;
+    pthread_mutex_unlock(&g_mix);
+}
+void hle_audio_fmod_close(void) {
+    pthread_mutex_lock(&g_mix);
+    memset(g_fmod_channels, 0, sizeof g_fmod_channels);
+    pthread_mutex_unlock(&g_mix);
+}
+
 /* Host streams: PCM a host pushes (a movie's sound), mixed with the
  * buffers. A ring of interleaved s16 at the stream's rate, played at that
  * rate. */
@@ -156,6 +297,37 @@ static void mix(void *ud, Uint8 *stream, int len) {
             acc[2 * f + 1] += g_stream[i].ring[2 * k + 1] / 32768.0f * g_stream[i].gain;
             g_stream[i].pos += step;
             while (g_stream[i].pos >= 1.0 && g_stream[i].rd < g_stream[i].wr) g_stream[i].pos -= 1.0, g_stream[i].rd++;
+        }
+    }
+    /* FMOD sample channels, mixed alongside DirectSound buffers/streams. */
+    for (int i = 0; i < g_fmod_max_channels; i++) {
+        fmod_mix_channel *c = &g_fmod_channels[i];
+        if (!c->used || c->paused || c->sample < 0 || c->sample >= MAX_FMOD_SAMPLES) continue;
+        fmod_mix_sample *s = &g_fmod_samples[c->sample];
+        if (!s->used || !s->pcm || !s->frames) { c->used = 0; continue; }
+        double step = (double)(c->frequency > 0 ? c->frequency : s->rate) / OUT_RATE;
+        float volume = (float)c->volume / 255.0f;
+        float left_gain = 1.0f, right_gain = 1.0f;
+        if (c->pan < 128) right_gain = (float)c->pan / 128.0f;
+        else if (c->pan > 128) left_gain = (float)(255 - c->pan) / 127.0f;
+        for (int f = 0; f < frames && c->used; f++) {
+            uint32_t at = (uint32_t)c->pos;
+            if (at >= s->frames) {
+                if (s->loop) {
+                    c->pos -= (double)s->frames * floor(c->pos / (double)s->frames);
+                    at = (uint32_t)c->pos;
+                } else {
+                    c->used = 0;
+                    break;
+                }
+            }
+            float l = (float)s->pcm[(size_t)at * (size_t)s->channels] / 32768.0f;
+            float r = s->channels > 1
+                    ? (float)s->pcm[(size_t)at * (size_t)s->channels + 1] / 32768.0f
+                    : l;
+            acc[2 * f] += l * volume * left_gain * g_fmod_master;
+            acc[2 * f + 1] += r * volume * right_gain * g_fmod_master;
+            c->pos += step;
         }
     }
     pthread_mutex_unlock(&g_mix);

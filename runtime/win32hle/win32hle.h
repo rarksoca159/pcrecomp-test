@@ -354,6 +354,18 @@ void hle_audio_stream_push(int id, const int16_t *pcm, int frames);
 int  hle_audio_stream_queued(int id);                 /* frames pushed and not yet played */
 void hle_audio_stream_gain(int id, float gain);
 void hle_audio_stream_close(int id);
+/* FMOD 3.x samples and channels, mixed by the same SDL2 device. */
+int  hle_audio_fmod_init(int rate, int max_channels);
+int  hle_audio_fmod_sample_create(const int16_t *pcm, uint32_t frames, int channels, int rate, int loop);
+void hle_audio_fmod_sample_free(int id);
+int  hle_audio_fmod_play(int sample_id, int requested_channel, int paused);
+void hle_audio_fmod_set_paused(int channel, int paused);
+void hle_audio_fmod_set_pan(int channel, int pan);
+void hle_audio_fmod_set_volume(int channel, int volume);
+void hle_audio_fmod_set_frequency(int channel, int frequency);
+int  hle_audio_fmod_stop(int channel);
+void hle_audio_fmod_set_master(int volume);
+void hle_audio_fmod_close(void);
 int  hle_file_fd(uint32_t handle);                    /* a file HANDLE's descriptor, or -1 */
 extern const win32hle_shim win32hle_mss[];            /* Miles: file helpers, an MP3 ASI codec on ffmpeg (mss.c) */
 extern const win32hle_shim win32hle_bink[];           /* binkw32 on ffmpeg (bink.c; stubs without HLE_WITH_FFMPEG) */

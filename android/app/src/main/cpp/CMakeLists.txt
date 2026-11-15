@@ -94,6 +94,7 @@ add_library(spinwin_win32hle OBJECT
     ${SPINWIN_HLE_DIR}/module.c
     ${SPINWIN_HLE_DIR}/shell32.c
     ${SPINWIN_HLE_DIR}/fmod.c
+    ${SPINWIN_HLE_DIR}/stb_vorbis.c
     ${SPINWIN_HLE_DIR}/kernel32.c
     ${SPINWIN_HLE_DIR}/kernel32_ext.c
     ${SPINWIN_HLE_DIR}/kernel32_crt.c
