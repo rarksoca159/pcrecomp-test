@@ -54,6 +54,12 @@ typedef struct {
 } dev_t_;
 
 static uint32_t g_vt_di, g_vt_dev, g_seq;
+#ifdef __ANDROID__
+/* Keep the first few keyboard reads visible in the Android file trace.
+ * This tells us whether the game's name-entry code polls DirectInput. */
+static unsigned g_android_keyboard_state_reads, g_android_keyboard_data_reads;
+#endif
+
 /* The devices made, so input arriving can reach them. */
 #define MAX_DEV 16
 static uint32_t g_devs[MAX_DEV];
@@ -216,6 +222,13 @@ static void dv_Acquire(void) {
 static void dv_Unacquire(void) { DEV(A32(0))->acquired = 0; relative(); RET(DI_OK, 1); }
 static void dv_GetDeviceState(void) {                    /* (this, size, data) */
     dev_t_ *d = DEV(A32(0));
+#ifdef __ANDROID__
+    if (d->kind == KEYBOARD && g_android_keyboard_state_reads++ < 12) {
+        fprintf(stderr, "[dinput] ANDROID_KEYBOARD_GETSTATE size=%u acquired=%d\\n",
+                A32(1), d->acquired);
+        fflush(stderr);
+    }
+#endif
     uint32_t n = A32(1), p = A32(2);
     if (!p || !n) RET(DIERR_INVALIDPARAM, 3);
     memset(hle_ptr(p), 0, n);
@@ -241,6 +254,13 @@ static void dv_GetDeviceState(void) {                    /* (this, size, data) *
 }
 static void dv_GetDeviceData(void) {                     /* (this, objsize, rgdod, &inout, flags) */
     dev_t_ *d = DEV(A32(0));
+#ifdef __ANDROID__
+    if (d->kind == KEYBOARD && g_android_keyboard_data_reads++ < 12) {
+        fprintf(stderr, "[dinput] ANDROID_KEYBOARD_GETDATA capacity=%u flags=%u acquired=%d\\n",
+                A32(3) ? MEM32(A32(3)) : 0, A32(4), d->acquired);
+        fflush(stderr);
+    }
+#endif
     uint32_t sz = A32(1), out = A32(2), io = A32(3), flags = A32(4);
     if (out && !io) RET(DIERR_INVALIDPARAM, 5);          /* reading needs a count to read up to */
     uint32_t want = io ? MEM32(io) : 0;
