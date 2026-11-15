@@ -224,7 +224,7 @@ static void dv_GetDeviceState(void) {                    /* (this, size, data) *
     dev_t_ *d = DEV(A32(0));
 #ifdef __ANDROID__
     if (d->kind == KEYBOARD && g_android_keyboard_state_reads++ < 12) {
-        fprintf(stderr, "[dinput] ANDROID_KEYBOARD_GETSTATE size=%u acquired=%d\\n",
+        fprintf(stderr, "[dinput] ANDROID_KEYBOARD_GETSTATE size=%u acquired=%d\n",
                 A32(1), d->acquired);
         fflush(stderr);
     }
@@ -256,7 +256,7 @@ static void dv_GetDeviceData(void) {                     /* (this, objsize, rgdo
     dev_t_ *d = DEV(A32(0));
 #ifdef __ANDROID__
     if (d->kind == KEYBOARD && g_android_keyboard_data_reads++ < 12) {
-        fprintf(stderr, "[dinput] ANDROID_KEYBOARD_GETDATA capacity=%u flags=%u acquired=%d\\n",
+        fprintf(stderr, "[dinput] ANDROID_KEYBOARD_GETDATA capacity=%u flags=%u acquired=%d\n",
                 A32(3) ? MEM32(A32(3)) : 0, A32(4), d->acquired);
         fflush(stderr);
     }
