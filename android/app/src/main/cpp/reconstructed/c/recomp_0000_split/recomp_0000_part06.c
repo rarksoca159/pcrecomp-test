@@ -3148,8 +3148,17 @@ L_0040F6BE:
     PUSH32(esp, ebx); /* 0x0040F6C3: push ebx */
     PUSH32(esp, esi); /* 0x0040F6C4: push esi */
     PUSH32(esp, ebp); /* 0x0040F6C5: push ebp */
+#ifdef __ANDROID__
+    if (esi == 0x0102u || esi == 0x0100u || esi == 0x0105u)
+        fprintf(stderr, "[keyboard] GAME_WNDPROC hwnd=%08x msg=%04x wp=%08x lp=%08x handler=%08x\\n",
+                MEM32(esp + 0x5C), esi, ebp, ebx, MEM32(0x41D1A0));
+#endif
     RECOMP_ICALL(MEM32(0x41D1A0)); /* 0x0040F6C6: call dword ptr [0x41d1a0] */
     RECOMP_FLAGS_IN();
+#ifdef __ANDROID__
+    if (esi == 0x0102u || esi == 0x0100u || esi == 0x0105u)
+        fprintf(stderr, "[keyboard] GAME_WNDPROC_RETURN msg=%04x eax=%08x\\n", esi, eax);
+#endif
     esi = POP32_VAL(esp); /* 0x0040F6CC: pop esi */
     ebp = POP32_VAL(esp); /* 0x0040F6CD: pop ebp */
     ebx = POP32_VAL(esp); /* 0x0040F6CE: pop ebx */
