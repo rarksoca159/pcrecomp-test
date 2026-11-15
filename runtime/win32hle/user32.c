@@ -421,6 +421,10 @@ static uint32_t create_window(uint32_t exstyle, const char *cls, const char *tit
     x->x = px, x->y = py, x->w = pw, x->h = ph;
     x->cursel = -1, x->item_h = 13, x->rmax = 100, x->limit = 0x7FFFFFFE;
     if (title && (uintptr_t)title >= 0x10000u) snprintf(x->text, sizeof x->text, "%s", title);
+#ifdef __ANDROID__
+    fprintf(stderr, "[keyboard] WINDOW_CREATE hwnd=%08x class=%s kind=%d proc=%08x parent=%08x id=%u style=%08x text='%s'\\n",
+            x->hwnd, g_cls[x->cls].name, x->kind, x->proc, x->parent, x->id, x->style, x->text);
+#endif
     uint32_t cs_[12] = { param, hinst, menu, parent, (uint32_t)ph, (uint32_t)pw, (uint32_t)py, (uint32_t)px, style,
                          title ? hle_guest_str_or_atom(title) : 0, hle_guest_str_or_atom(cls), exstyle };
     uint32_t cs = hle_scratch_copy(cs_, sizeof cs_);
@@ -537,6 +541,13 @@ static void destroy(uint32_t h) {
 static void set_focus(uint32_t h) {
     uint32_t old = g_focus;
     if (old == h) return;
+#ifdef __ANDROID__
+    win_t *ox = W(old), *nx = W(h);
+    fprintf(stderr, "[keyboard] FOCUS_CHANGE old=%08x old_class=%s old_kind=%d new=%08x new_class=%s new_kind=%d new_proc=%08x new_parent=%08x\\n",
+            old, ox ? g_cls[ox->cls].name : "-", ox ? ox->kind : -1,
+            h, nx ? g_cls[nx->cls].name : "-", nx ? nx->kind : -1,
+            nx ? nx->proc : 0, nx ? nx->parent : 0);
+#endif
     int old_edit = old && W(old) && W(old)->kind == K_EDIT;
     int new_edit = h && W(h) && W(h)->kind == K_EDIT;
     g_focus = h;
@@ -925,8 +936,9 @@ void hle_input_text(const char *utf8) {
     uint32_t target = hle_focus_window();
     win_t *x = W(target);
     if (!utf8) return;
-    fprintf(stderr, "[keyboard] HLE_TEXT received='%s' focus=%08x queue_before=%u pending=%d\\n",
-            utf8, target, g_text_count, g_text_pending);
+    fprintf(stderr, "[keyboard] HLE_TEXT received='%s' focus=%08x focus_class=%s focus_kind=%d focus_proc=%08x focus_parent=%08x active=%08x queue_before=%u pending=%d\\n",
+            utf8, target, x ? g_cls[x->cls].name : "-", x ? x->kind : -1,
+            x ? x->proc : 0, x ? x->parent : 0, g_active, g_text_count, g_text_pending);
     fflush(stderr);
     /* Preserve WM_CHAR for standard controls when a window has focus. The
      * custom game name-entry routine polls GetKeyboardState/ToAsciiEx directly,
